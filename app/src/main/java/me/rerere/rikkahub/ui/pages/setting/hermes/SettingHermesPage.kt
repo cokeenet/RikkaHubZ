@@ -1,14 +1,19 @@
 package me.rerere.rikkahub.ui.pages.setting.hermes
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,11 +28,15 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,7 +65,29 @@ fun SettingHermesPage(
     val probeState by vm.probeState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
+    var baseUrlText by rememberSaveable { mutableStateOf(config.baseUrl) }
+    var apiTokenText by rememberSaveable { mutableStateOf(config.apiToken) }
+    var fallbackProviderText by rememberSaveable { mutableStateOf(config.fallbackProviderId) }
+    var baseUrlFocused by remember { mutableStateOf(false) }
+    var apiTokenFocused by remember { mutableStateOf(false) }
+    var fallbackProviderFocused by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(config.baseUrl, baseUrlFocused) {
+        if (!baseUrlFocused && baseUrlText != config.baseUrl) {
+            baseUrlText = config.baseUrl
+        }
+    }
+    LaunchedEffect(config.apiToken, apiTokenFocused) {
+        if (!apiTokenFocused && apiTokenText != config.apiToken) {
+            apiTokenText = config.apiToken
+        }
+    }
+    LaunchedEffect(config.fallbackProviderId, fallbackProviderFocused) {
+        if (!fallbackProviderFocused && fallbackProviderText != config.fallbackProviderId) {
+            fallbackProviderText = config.fallbackProviderId
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -72,7 +103,7 @@ fun SettingHermesPage(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
+            contentPadding = innerPadding + PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
@@ -83,31 +114,33 @@ fun SettingHermesPage(
                     title = { Text("Bridge") },
                 ) {
                     item(
-                        leadingContent = { Icon(HugeIcons.Link02, null) },
-                        headlineContent = { Text("地址") },
-                        supportingContent = { Text("电脑端 Hermes Bridge，例如 http://192.168.1.10:3001") },
-                        trailingContent = {
-                            TextField(
-                                value = config.baseUrl,
-                                onValueChange = vm::setBaseUrl,
-                                singleLine = true,
-                                modifier = Modifier.width(230.dp),
+                        headlineContent = {
+                            HermesInputItem(
+                                leadingContent = { Icon(HugeIcons.Link02, null) },
+                                title = "地址",
+                                description = "电脑端 Hermes Bridge，例如 http://192.168.1.10:3001",
+                                value = baseUrlText,
+                                onValueChange = { value ->
+                                    baseUrlText = value
+                                    vm.setBaseUrl(value)
+                                },
+                                onFocusChanged = { baseUrlFocused = it },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                                shape = CircleShape,
-                                colors = textFieldColors(),
                             )
                         },
                     )
                     item(
-                        leadingContent = { Icon(HugeIcons.Shield01, null) },
-                        headlineContent = { Text("Token") },
-                        supportingContent = { Text("对应电脑端 Security:ApiToken") },
-                        trailingContent = {
-                            TextField(
-                                value = config.apiToken,
-                                onValueChange = vm::setApiToken,
-                                singleLine = true,
-                                modifier = Modifier.width(230.dp),
+                        headlineContent = {
+                            HermesInputItem(
+                                leadingContent = { Icon(HugeIcons.Shield01, null) },
+                                title = "Token",
+                                description = "对应电脑端 Security:ApiToken",
+                                value = apiTokenText,
+                                onValueChange = { value ->
+                                    apiTokenText = value
+                                    vm.setApiToken(value)
+                                },
+                                onFocusChanged = { apiTokenFocused = it },
                                 visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     androidx.compose.material3.IconButton(onClick = { tokenVisible = !tokenVisible }) {
@@ -117,23 +150,21 @@ fun SettingHermesPage(
                                         )
                                     }
                                 },
-                                shape = CircleShape,
-                                colors = textFieldColors(),
                             )
                         },
                     )
                     item(
-                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
-                        headlineContent = { Text("Fallback Provider") },
-                        supportingContent = { Text("电脑离线时手机端优先使用的 Provider ID，稍后接入聊天流程") },
-                        trailingContent = {
-                            TextField(
-                                value = config.fallbackProviderId,
-                                onValueChange = vm::setFallbackProviderId,
-                                singleLine = true,
-                                modifier = Modifier.width(230.dp),
-                                shape = CircleShape,
-                                colors = textFieldColors(),
+                        headlineContent = {
+                            HermesInputItem(
+                                leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                                title = "Fallback Provider",
+                                description = "电脑离线时手机端优先使用的 Provider ID，稍后接入聊天流程",
+                                value = fallbackProviderText,
+                                onValueChange = { value ->
+                                    fallbackProviderText = value
+                                    vm.setFallbackProviderId(value)
+                                },
+                                onFocusChanged = { fallbackProviderFocused = it },
                             )
                         },
                     )
@@ -157,7 +188,7 @@ fun SettingHermesPage(
                             ) {
                                 if (probeState is HermesProbeUiState.Loading) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.width(18.dp),
+                                        modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
                                     )
                                 } else {
@@ -173,6 +204,72 @@ fun SettingHermesPage(
                 ProbeResult(state = probeState)
             }
         }
+    }
+}
+
+@Composable
+private fun HermesInputItem(
+    leadingContent: @Composable () -> Unit,
+    title: String,
+    description: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit = {},
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailingIcon: (@Composable () -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(14.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                leadingContent()
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = description,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 54.dp)
+                .onFocusChanged { onFocusChanged(it.isFocused) },
+            textStyle = MaterialTheme.typography.bodyLarge,
+            keyboardOptions = keyboardOptions,
+            visualTransformation = visualTransformation,
+            trailingIcon = trailingIcon,
+            shape = CircleShape,
+            colors = textFieldColors(),
+        )
     }
 }
 
@@ -236,6 +333,9 @@ private fun ProbeResult(state: HermesProbeUiState) {
 
 @Composable
 private fun textFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     focusedIndicatorColor = Color.Transparent,
     unfocusedIndicatorColor = Color.Transparent,
     disabledIndicatorColor = Color.Transparent,
