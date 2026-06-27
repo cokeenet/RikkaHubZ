@@ -4,7 +4,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import dynamiccolor.DynamicScheme
+import com.materialkolor.scheme.DynamicScheme
+
 
 fun DynamicScheme.toColorScheme(): ColorScheme {
     val s = this

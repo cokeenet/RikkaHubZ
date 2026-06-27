@@ -147,7 +147,7 @@ private fun CardGroupListItem(
 fun CardGroup(
     modifier: Modifier = Modifier,
     title: (@Composable () -> Unit)? = null,
-    content: CardGroupScope.() -> Unit,
+    content: @Composable CardGroupScope.() -> Unit,
 ) {
     // Cache the scope across recompositions instead of allocating a fresh CardGroupScopeImpl
     // + N CardGroupItem records every time the parent recomposes. On dense pages (the

@@ -1,9 +1,42 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.library)
 }
 
 val webUiDir = rootProject.layout.projectDirectory.dir("web-ui")
 val webStaticResourcesDir = layout.projectDirectory.dir("src/main/resources/static")
+val isWindowsHost = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+val userHome = System.getProperty("user.home")
+
+fun firstExistingExecutable(vararg candidates: String): String? =
+    candidates.firstOrNull { File(it).isFile }
+
+fun webToolCommand(
+    commandName: String,
+    envOverride: String,
+    vararg windowsFallbacks: String
+): String {
+    System.getenv(envOverride)?.takeIf { File(it).isFile }?.let { return it }
+
+    return if (isWindowsHost) {
+        firstExistingExecutable(*windowsFallbacks) ?: commandName
+    } else {
+        commandName
+    }
+}
+
+val bunCommand = webToolCommand(
+    commandName = "bun",
+    envOverride = "BUN_EXE",
+    "$userHome\\.bun\\bin\\bun.exe",
+)
+val pnpmCommand = webToolCommand(
+    commandName = "pnpm",
+    envOverride = "PNPM_EXE",
+    "E:\\npm_global\\pnpm.cmd",
+    "$userHome\\AppData\\Roaming\\npm\\pnpm.cmd",
+)
 
 // Install web-ui dependencies. Up-to-date when bun.lock + package.json haven't
 // changed since the last successful install, so it's a no-op on every build
@@ -15,7 +48,7 @@ val installWebUiDeps = tasks.register<Exec>("installWebUiDeps") {
     description = "Install web-ui dependencies via bun if the lockfile changed."
 
     workingDir = webUiDir.asFile
-    commandLine("bun", "install", "--frozen-lockfile")
+    commandLine(bunCommand, "install", "--frozen-lockfile")
 
     inputs.files(
         webUiDir.file("package.json"),
@@ -31,7 +64,7 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
     dependsOn(installWebUiDeps)
 
     workingDir = webUiDir.asFile
-    commandLine("pnpm", "run", "build")
+    commandLine(pnpmCommand, "run", "build")
 
     inputs.files(
         webUiDir.file("package.json"),

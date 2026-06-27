@@ -271,6 +271,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_telegram)) },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.SettingHermes) },
+                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                        supportingContent = { Text("连接电脑端 Hermes Bridge，拉取人格和记忆") },
+                        headlineContent = { Text("Hermes") },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.SettingWorkflows) },
                         leadingContent = { Icon(HugeIcons.Connect, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_workflows_desc)) },

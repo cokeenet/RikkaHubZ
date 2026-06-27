@@ -20,6 +20,7 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
 import me.rerere.rikkahub.ui.pages.setting.browser.SettingBrowserViewModel
+import me.rerere.rikkahub.ui.pages.setting.hermes.SettingHermesViewModel
 import me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxViewModel
 import me.rerere.rikkahub.ui.pages.setting.locallm.SettingLocalLlmViewModel
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerVM
@@ -93,6 +94,7 @@ val viewModelModule = module {
     viewModelOf(::ScheduledJobsViewModel)
     viewModelOf(::DoctorViewModel)
     viewModelOf(::SettingBrowserViewModel)
+    viewModelOf(::SettingHermesViewModel)
     viewModelOf(::SettingTermuxViewModel)
 
     // Phase 22A: parameterised by LocalRuntime — one VM instance per provider tile.
