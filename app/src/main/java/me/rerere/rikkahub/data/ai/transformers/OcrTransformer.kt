@@ -60,26 +60,14 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             return messages
         }
 
-        val hasImages = messages.any { message ->
-            message.parts.any { it is UIMessagePart.Image && it.url.startsWith("file:") }
-        }
+        val hasImages = messages.any { message -> message.parts.any(UIMessagePart::containsImage) }
         if (!hasImages) return messages
 
         return withContext(Dispatchers.IO) {
             try {
                 ctx.processingStatus.value = ctx.context.getString(R.string.ocr_status_recognizing)
-                messages.map { message ->
-                    message.copy(
-                        parts = message.parts.map { part ->
-                            when {
-                                part is UIMessagePart.Image && part.url.startsWith("file:") -> {
-                                    UIMessagePart.Text(performOcr(part))
-                                }
-
-                                else -> part
-                            }
-                        }
-                    )
+                messages.replaceImagesForTextModel { image ->
+                    UIMessagePart.Text(performOcr(image))
                 }
             } finally {
                 ctx.processingStatus.value = null
@@ -96,6 +84,10 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
 
         val settings = get<SettingsStore>().settingsFlow.value
         val model = settings.findModelById(settings.ocrModelId) ?: return "[Image]"
+        if (Modality.IMAGE !in model.inputModalities) {
+            Log.w(TAG, "performOcr: configured OCR model ${model.id} does not support image input")
+            return "[Image: OCR model is not configured as a vision-capable model]"
+        }
         val providerSetting = model.findProvider(settings.providers) ?: return "[Image]"
         val provider = get<ProviderManager>().getProviderByType(providerSetting)
         val result = withTimeoutOrNull(OCR_TIMEOUT_MS) {
@@ -125,7 +117,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             <image_file_ocr>
                $content
             </image_file_ocr>
-            * The image_file_ocr tag contains a description of an image that the user uploaded to you, not the user's prompt.
+            * The image_file_ocr tag contains a visual description of an image from the conversation or a tool result, not the user's prompt.
         """.trimIndent()
 
         // Cache the result
@@ -136,5 +128,28 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         // it into a fake OCR-failure string, which would defeat cooperative cancellation.
         if (it is kotlinx.coroutines.CancellationException) throw it
         "[ERROR, OCR failed: $it]"
+    }
+}
+
+internal fun UIMessagePart.containsImage(): Boolean = when (this) {
+    is UIMessagePart.Image -> true
+    is UIMessagePart.Tool -> output.any(UIMessagePart::containsImage)
+    else -> false
+}
+
+internal suspend fun List<UIMessage>.replaceImagesForTextModel(
+    replacement: suspend (UIMessagePart.Image) -> UIMessagePart.Text,
+): List<UIMessage> = map { message ->
+    message.copy(parts = replaceMessagePartImages(message.parts, replacement))
+}
+
+private suspend fun replaceMessagePartImages(
+    parts: List<UIMessagePart>,
+    replacement: suspend (UIMessagePart.Image) -> UIMessagePart.Text,
+): List<UIMessagePart> = parts.map { part ->
+    when (part) {
+        is UIMessagePart.Image -> replacement(part)
+        is UIMessagePart.Tool -> part.copy(output = replaceMessagePartImages(part.output, replacement))
+        else -> part
     }
 }

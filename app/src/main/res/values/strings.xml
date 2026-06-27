@@ -760,6 +760,12 @@
   <string name="setting_model_page_ocr_model">OCR Model</string>
   <string name="setting_model_page_ocr_model_desc">Model used for optical character recognition on images</string>
   <string name="setting_model_page_ocr_prompt_vars">Variables: Image data: {images}</string>
+  <string name="setting_model_page_non_vision_image_strategy">Non-vision Image Handling</string>
+  <string name="setting_model_page_non_vision_image_strategy_desc">Uses the OCR model as the vision fallback. Choose a vision-capable model for OCR.</string>
+  <string name="setting_model_page_non_vision_image_strategy_vision_reply">Let vision model reply</string>
+  <string name="setting_model_page_non_vision_image_strategy_vision_reply_desc">Send the image-bearing turn to the OCR or vision model and use its answer directly.</string>
+  <string name="setting_model_page_non_vision_image_strategy_explain_then_text">Describe, then continue</string>
+  <string name="setting_model_page_non_vision_image_strategy_explain_then_text_desc">Ask the OCR or vision model to describe images, then continue the turn with the current text model.</string>
   <string name="setting_model_page_prompt">Prompt</string>
   <string name="setting_model_page_reset_to_default">Reset to default</string>
   <string name="setting_model_page_enable_suggestion">Enable Chat Suggestions</string>

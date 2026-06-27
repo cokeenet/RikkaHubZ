@@ -34,6 +34,7 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.core.merge
 import me.rerere.ai.provider.CustomBody
+import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderManager
@@ -48,6 +49,7 @@ import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
+import me.rerere.rikkahub.data.ai.transformers.containsImage
 import me.rerere.rikkahub.data.files.FileFolders
 import java.io.File
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
@@ -55,6 +57,7 @@ import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
 import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
+import me.rerere.rikkahub.data.datastore.NonVisionImageStrategy
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -132,6 +135,17 @@ private fun List<UIMessage>.ageOldToolImages(): List<UIMessage> {
         msg.copy(parts = newParts)
     }.asReversed()
 }
+
+internal fun List<UIMessage>.latestMessageContainsImageParts(): Boolean =
+    lastOrNull()?.parts?.any(UIMessagePart::containsImage) == true
+
+private fun Model.supportsImageInput(): Boolean = Modality.IMAGE in inputModalities
+
+private data class GenerationTarget(
+    val model: Model,
+    val provider: ProviderSetting,
+    val providerImpl: Provider<ProviderSetting>,
+)
 
 @Serializable
 sealed interface GenerationChunk {
@@ -954,7 +968,15 @@ class GenerationHandler(
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
     ) {
-        val internalMessages = buildList {
+        val scopedMessages = messages.limitContext(assistant.contextMessageSize).ageOldToolImages()
+        val target = resolveGenerationTarget(
+            settings = settings,
+            requestedModel = model,
+            requestedProvider = provider,
+            requestedProviderImpl = providerImpl,
+            messages = scopedMessages,
+        )
+        val preTransformMessages = buildList {
             // Conversation-level system prompt override (upstream): when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.
             val effectiveSystemPrompt =
@@ -969,7 +991,7 @@ class GenerationHandler(
             val recentChatsPrompt = if (assistant.enableRecentChatsReference) {
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""
-            val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
+            val toolPrompts = tools.map { tool -> tool.systemPrompt(target.model, messages) }
             // Split into stable (assistant + tools) and volatile (memory + recent chats +
             // addendum) so prompt caching survives memory injection: the stable part is the
             // cached prefix, the volatile part sits after it. See SystemPromptBuilder.
@@ -987,11 +1009,12 @@ class GenerationHandler(
             if (systemParts.isNotEmpty()) {
                 add(UIMessage(role = MessageRole.SYSTEM, parts = systemParts))
             }
-            addAll(messages.limitContext(assistant.contextMessageSize).ageOldToolImages())
-        }.transforms(
+            addAll(scopedMessages)
+        }
+        val internalMessages = preTransformMessages.transforms(
             transformers = transformers,
             context = context,
-            model = model,
+            model = target.model,
             assistant = assistant,
             settings = settings,
             conversationModeInjectionIds = conversationModeInjectionIds,
@@ -1002,7 +1025,7 @@ class GenerationHandler(
 
         var messages: List<UIMessage> = messages
         val params = TextGenerationParams(
-            model = model,
+            model = target.model,
             temperature = assistant.temperature,
             topP = assistant.topP,
             maxTokens = assistant.maxTokens,
@@ -1010,11 +1033,11 @@ class GenerationHandler(
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
                 addAll(assistant.customHeaders)
-                addAll(model.customHeaders)
+                addAll(target.model.customHeaders)
             },
             customBody = buildList {
                 addAll(assistant.customBodies)
-                addAll(model.customBodies)
+                addAll(target.model.customBodies)
             }
         )
         if (stream) {
@@ -1022,16 +1045,16 @@ class GenerationHandler(
                 AILogging.Generation(
                     params = params,
                     messages = messages,
-                    providerSetting = provider,
+                    providerSetting = target.provider,
                     stream = true
                 )
             )
-            providerImpl.streamText(
-                providerSetting = provider,
+            target.providerImpl.streamText(
+                providerSetting = target.provider,
                 messages = internalMessages,
                 params = params
             ).collect {
-                messages = messages.handleMessageChunk(chunk = it, model = model)
+                messages = messages.handleMessageChunk(chunk = it, model = target.model)
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
                         if (index == messages.lastIndex) {
@@ -1048,16 +1071,16 @@ class GenerationHandler(
                 AILogging.Generation(
                     params = params,
                     messages = messages,
-                    providerSetting = provider,
+                    providerSetting = target.provider,
                     stream = false
                 )
             )
-            val chunk = providerImpl.generateText(
-                providerSetting = provider,
+            val chunk = target.providerImpl.generateText(
+                providerSetting = target.provider,
                 messages = internalMessages,
                 params = params,
             )
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
+            messages = messages.handleMessageChunk(chunk = chunk, model = target.model)
             chunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
@@ -1071,6 +1094,45 @@ class GenerationHandler(
             }
             onUpdateMessages(messages)
         }
+    }
+
+    private fun resolveGenerationTarget(
+        settings: Settings,
+        requestedModel: Model,
+        requestedProvider: ProviderSetting,
+        requestedProviderImpl: Provider<ProviderSetting>,
+        messages: List<UIMessage>,
+    ): GenerationTarget {
+        val defaultTarget = GenerationTarget(
+            model = requestedModel,
+            provider = requestedProvider,
+            providerImpl = requestedProviderImpl,
+        )
+        if (requestedModel.supportsImageInput()) return defaultTarget
+        if (!messages.latestMessageContainsImageParts()) return defaultTarget
+        if (settings.nonVisionImageStrategy != NonVisionImageStrategy.VISION_MODEL_REPLY) {
+            return defaultTarget
+        }
+
+        val visionModel = settings.findModelById(settings.ocrModelId)
+        if (visionModel == null) {
+            Log.w(TAG, "resolveGenerationTarget: vision fallback model is not configured")
+            return defaultTarget
+        }
+        if (!visionModel.supportsImageInput()) {
+            Log.w(TAG, "resolveGenerationTarget: configured vision fallback ${visionModel.id} has no image input")
+            return defaultTarget
+        }
+        val visionProvider = visionModel.findProvider(settings.providers)
+        if (visionProvider == null) {
+            Log.w(TAG, "resolveGenerationTarget: provider not found for vision fallback ${visionModel.id}")
+            return defaultTarget
+        }
+        return GenerationTarget(
+            model = visionModel,
+            provider = visionProvider,
+            providerImpl = providerManager.getProviderByType(visionProvider),
+        )
     }
 
     private fun maybeTruncateToolOutput(

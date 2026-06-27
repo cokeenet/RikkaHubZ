@@ -132,6 +132,7 @@ class SettingsStore(
         val SUGGESTION_PROMPT = stringPreferencesKey("suggestion_prompt")
         val OCR_MODEL = stringPreferencesKey("ocr_model")
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
+        val NON_VISION_IMAGE_STRATEGY = stringPreferencesKey("non_vision_image_strategy")
         val COMPRESS_MODEL = stringPreferencesKey("compress_model")
         val COMPRESS_PROMPT = stringPreferencesKey("compress_prompt")
 
@@ -224,6 +225,9 @@ class SettingsStore(
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
                 ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
+                nonVisionImageStrategy = NonVisionImageStrategy.fromPreference(
+                    preferences[NON_VISION_IMAGE_STRATEGY]
+                ),
                 compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
@@ -487,6 +491,7 @@ class SettingsStore(
             preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
             preferences[OCR_MODEL] = settings.ocrModelId.toString()
             preferences[OCR_PROMPT] = settings.ocrPrompt
+            preferences[NON_VISION_IMAGE_STRATEGY] = settings.nonVisionImageStrategy.preferenceName
             preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
             preferences[COMPRESS_PROMPT] = settings.compressPrompt
 
@@ -642,6 +647,7 @@ data class Settings(
     val suggestionPrompt: String = DEFAULT_SUGGESTION_PROMPT,
     val ocrModelId: Uuid = Uuid.random(),
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
+    val nonVisionImageStrategy: NonVisionImageStrategy = NonVisionImageStrategy.VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL,
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
@@ -702,6 +708,21 @@ enum class AiLogLevel(val preferenceName: String) {
 
     companion object {
         fun fromPreference(value: String?): AiLogLevel = entries.firstOrNull { it.preferenceName == value } ?: INFO
+    }
+}
+
+@Serializable
+enum class NonVisionImageStrategy(val preferenceName: String) {
+    @SerialName("vision_model_reply")
+    VISION_MODEL_REPLY("vision_model_reply"),
+
+    @SerialName("vision_model_explain_then_text_model")
+    VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL("vision_model_explain_then_text_model");
+
+    companion object {
+        fun fromPreference(value: String?): NonVisionImageStrategy =
+            entries.firstOrNull { it.preferenceName == value }
+                ?: VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL
     }
 }
 

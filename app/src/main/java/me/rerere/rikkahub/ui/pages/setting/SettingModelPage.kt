@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import me.rerere.hugeicons.stroke.AiEditing
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.NonVisionImageStrategy
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
@@ -159,6 +161,9 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             )
         }
         item {
+            NonVisionImageStrategySettingItem(settings = settings, vm = vm)
+        }
+        item {
             ModelSettingItem(
                 title = stringResource(R.string.setting_model_page_compress_model),
                 description = stringResource(R.string.setting_model_page_compress_model_desc),
@@ -168,6 +173,65 @@ private fun ModelSettingsPage(settings: Settings, vm: SettingVM, contentPadding:
             )
         }
     }
+}
+
+@Composable
+private fun NonVisionImageStrategySettingItem(
+    settings: Settings,
+    vm: SettingVM,
+) {
+    val options = listOf(
+        NonVisionImageStrategy.VISION_MODEL_REPLY,
+        NonVisionImageStrategy.VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL,
+    )
+
+    Column {
+        CardGroup(title = { Text(stringResource(R.string.setting_model_page_non_vision_image_strategy)) }) {
+            options.forEach { strategy ->
+                item(
+                    onClick = {
+                        vm.updateSettings(settings.copy(nonVisionImageStrategy = strategy))
+                    },
+                    headlineContent = {
+                        Text(strategy.label())
+                    },
+                    supportingContent = {
+                        Text(strategy.description())
+                    },
+                    trailingContent = {
+                        RadioButton(
+                            selected = settings.nonVisionImageStrategy == strategy,
+                            onClick = {
+                                vm.updateSettings(settings.copy(nonVisionImageStrategy = strategy))
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.setting_model_page_non_vision_image_strategy_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun NonVisionImageStrategy.label(): String = when (this) {
+    NonVisionImageStrategy.VISION_MODEL_REPLY ->
+        stringResource(R.string.setting_model_page_non_vision_image_strategy_vision_reply)
+    NonVisionImageStrategy.VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL ->
+        stringResource(R.string.setting_model_page_non_vision_image_strategy_explain_then_text)
+}
+
+@Composable
+private fun NonVisionImageStrategy.description(): String = when (this) {
+    NonVisionImageStrategy.VISION_MODEL_REPLY ->
+        stringResource(R.string.setting_model_page_non_vision_image_strategy_vision_reply_desc)
+    NonVisionImageStrategy.VISION_MODEL_EXPLAIN_THEN_TEXT_MODEL ->
+        stringResource(R.string.setting_model_page_non_vision_image_strategy_explain_then_text_desc)
 }
 
 @Composable

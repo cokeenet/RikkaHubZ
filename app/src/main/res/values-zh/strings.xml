@@ -756,6 +756,12 @@
   <string name="setting_model_page_ocr_model">OCR 模型</string>
   <string name="setting_model_page_ocr_model_desc">用于图像光学字符识别的模型</string>
   <string name="setting_model_page_ocr_prompt_vars">变量：图像数据：{images}</string>
+  <string name="setting_model_page_non_vision_image_strategy">非视觉模型图片处理</string>
+  <string name="setting_model_page_non_vision_image_strategy_desc">使用 OCR 模型作为视觉兜底模型，请选择支持图片输入的模型。</string>
+  <string name="setting_model_page_non_vision_image_strategy_vision_reply">交给视觉模型直接回复</string>
+  <string name="setting_model_page_non_vision_image_strategy_vision_reply_desc">本轮包含截图或图片时，临时切换到 OCR/视觉模型完成回复。</string>
+  <string name="setting_model_page_non_vision_image_strategy_explain_then_text">视觉模型解释后交回当前模型</string>
+  <string name="setting_model_page_non_vision_image_strategy_explain_then_text_desc">先让 OCR/视觉模型描述图片，再把描述文本交给当前文本模型继续回复。</string>
   <string name="setting_model_page_prompt">提示词</string>
   <string name="setting_model_page_reset_to_default">重置为默认</string>
   <string name="setting_model_page_suggestion_model">聊天建议模型</string>
