@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.hermes
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,11 +30,11 @@ class HermesBridgeClient(
         return HermesBridgeProbeResult(status, personality, memory)
     }
 
-    private inline fun <reified T> get(
+    private suspend inline fun <reified T> get(
         config: HermesBridgeConfig,
         path: String,
         requiresToken: Boolean,
-    ): T {
+    ): T = withContext(Dispatchers.IO) {
         val baseUrl = config.baseUrl.trim().trimEnd('/')
         if (baseUrl.isBlank()) {
             throw IOException("Hermes Bridge URL is empty.")
@@ -56,7 +58,7 @@ class HermesBridgeClient(
             if (!response.isSuccessful) {
                 throw IOException("Hermes Bridge request failed: HTTP ${response.code} ${body.take(160)}")
             }
-            return json.decodeFromString(body)
+            json.decodeFromString(body)
         }
     }
 }
