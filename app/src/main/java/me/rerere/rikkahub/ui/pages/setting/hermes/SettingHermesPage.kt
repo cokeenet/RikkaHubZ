@@ -642,6 +642,14 @@ private fun ProbeResult(state: HermesProbeUiState) {
         }
 
         is HermesProbeUiState.Success -> {
+            val dataRootText = state.dataRoot.ifBlank { "Bridge 已隐藏" }
+            val dataRootExistsText = if (state.dataRoot.isBlank()) {
+                "未知"
+            } else if (state.dataRootExists) {
+                "是"
+            } else {
+                "否"
+            }
             Column {
                 ListItem(
                     headlineContent = {
@@ -653,8 +661,8 @@ private fun ProbeResult(state: HermesProbeUiState) {
                     supportingContent = {
                         Text(
                             "服务: ${state.service}\n" +
-                                "数据目录: ${state.dataRoot}\n" +
-                                "目录存在: ${if (state.dataRootExists) "是" else "否"}\n" +
+                                "数据目录: $dataRootText\n" +
+                                "目录存在: $dataRootExistsText\n" +
                                 "人格文件: ${if (state.personalityExists) "已找到" else "未找到"}\n" +
                                 "记忆数量: ${state.memoryCount}"
                         )
