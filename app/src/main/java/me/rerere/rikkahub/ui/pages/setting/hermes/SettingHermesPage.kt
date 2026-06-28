@@ -80,6 +80,7 @@ fun SettingHermesPage(
     val memoryQueueState by vm.memoryQueueState.collectAsStateWithLifecycle()
     val memoryMutationState by vm.memoryMutationState.collectAsStateWithLifecycle()
     val memoryUploadState by vm.memoryUploadState.collectAsStateWithLifecycle()
+    val conversationSyncState by vm.conversationSyncState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var baseUrlText by rememberSaveable { mutableStateOf(config.baseUrl) }
@@ -367,6 +368,40 @@ fun SettingHermesPage(
 
             item {
                 BridgeSyncResult(state = bridgeSyncState)
+            }
+
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    title = { Text("电脑会话") },
+                ) {
+                    item(
+                        leadingContent = { Icon(HugeIcons.Download01, null) },
+                        headlineContent = { Text("导入最近电脑会话") },
+                        supportingContent = { Text("从 Bridge 拉取最近 10 个文本会话并导入 Hermes 助手本地会话库") },
+                        trailingContent = {
+                            Button(
+                                onClick = vm::importRecentConversations,
+                                enabled = conversationSyncState !is HermesConversationSyncUiState.Loading,
+                            ) {
+                                if (conversationSyncState is HermesConversationSyncUiState.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text("导入")
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+
+            item {
+                ConversationSyncResult(state = conversationSyncState)
             }
 
             item {
@@ -794,6 +829,67 @@ private fun SyncResult(state: HermesSyncUiState) {
     }
 }
 
+@Composable
+private fun ConversationSyncResult(state: HermesConversationSyncUiState) {
+    when (state) {
+        HermesConversationSyncUiState.Idle -> {
+            ListItem(
+                headlineContent = { Text("尚未导入电脑会话") },
+                supportingContent = { Text("点击导入后，电脑端文本会话会进入 Hermes 助手历史") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        HermesConversationSyncUiState.Loading -> {
+            ListItem(
+                headlineContent = { Text("正在导入电脑会话") },
+                supportingContent = { Text("正在拉取列表和会话详情") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesConversationSyncUiState.Success -> {
+            val latest = state.summary.imported.takeLast(4).joinToString("\n") { item ->
+                "${if (item.updated) "更新" else "新增"}: ${item.title} (${item.messageCount})"
+            }
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "会话导入完成",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        buildString {
+                            appendLine("电脑端列表: ${state.summary.listed}")
+                            appendLine("导入: ${state.summary.importedCount}，新增: ${state.summary.insertedCount}，更新: ${state.summary.updatedCount}")
+                            appendLine("来源: ${state.summary.source.ifBlank { "Hermes Bridge" }}")
+                            if (latest.isNotBlank()) {
+                                appendLine("最近导入:")
+                                append(latest)
+                            }
+                        }.trim()
+                    )
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesConversationSyncUiState.Error -> {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "会话导入失败",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                supportingContent = { Text(state.message) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+    }
+}
 @Composable
 private fun MemoryQueueResult(
     mutationState: HermesMemoryMutationUiState,

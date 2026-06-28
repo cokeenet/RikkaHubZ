@@ -28,6 +28,48 @@ data class HermesChatResponse(
 )
 
 @Serializable
+data class HermesConversationListResponse(
+    val schemaVersion: Int = 1,
+    val source: String = "",
+    val exportedAtUtc: String = "",
+    val cursor: String = "",
+    val conversations: List<HermesConversationSummary> = emptyList(),
+)
+
+@Serializable
+data class HermesConversationSummary(
+    val id: String = "",
+    val title: String = "",
+    val assistantId: String = "",
+    val modelId: String = "",
+    val createdAtUtc: String = "",
+    val updatedAtUtc: String = "",
+    val messageCount: Int = 0,
+    val lastMessagePreview: String = "",
+    val lastMessageRole: String = "",
+)
+
+@Serializable
+data class HermesConversationDetailResponse(
+    val schemaVersion: Int = 1,
+    val source: String = "",
+    val exportedAtUtc: String = "",
+    val conversation: HermesConversationSummary = HermesConversationSummary(),
+    val messages: List<HermesConversationMessage> = emptyList(),
+)
+
+@Serializable
+data class HermesConversationMessage(
+    val id: String = "",
+    val parentMessageId: String = "",
+    val role: String = "",
+    val text: String = "",
+    val modelId: String = "",
+    val createdAtUtc: String = "",
+    val updatedAtUtc: String? = null,
+)
+
+@Serializable
 data class HermesStatusResponse(
     val service: String = "",
     val status: String = "",

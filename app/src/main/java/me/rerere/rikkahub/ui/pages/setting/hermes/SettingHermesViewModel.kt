@@ -15,6 +15,8 @@ import me.rerere.rikkahub.hermes.HermesBridgeClient
 import me.rerere.rikkahub.hermes.HermesBridgeConfig
 import me.rerere.rikkahub.hermes.HermesBridgePreferences
 import me.rerere.rikkahub.hermes.HERMES_ASSISTANT_ID
+import me.rerere.rikkahub.hermes.HermesConversationImportSummary
+import me.rerere.rikkahub.hermes.HermesConversationSyncRepository
 import me.rerere.rikkahub.hermes.HermesMemoryMutation
 import me.rerere.rikkahub.hermes.HermesMemoryMutationRepository
 import me.rerere.rikkahub.hermes.HermesMemoryQueueSummary
@@ -32,6 +34,7 @@ class SettingHermesViewModel(
     private val client: HermesBridgeClient,
     private val syncRepository: HermesSyncRepository,
     private val memoryMutationRepository: HermesMemoryMutationRepository,
+    private val conversationSyncRepository: HermesConversationSyncRepository,
     private val routeResolver: HermesRouteResolver,
 ) : ViewModel() {
     val config: StateFlow<HermesBridgeConfig> = preferences.flow.stateIn(
@@ -99,6 +102,9 @@ class SettingHermesViewModel(
         private set
 
     var memoryUploadState = kotlinx.coroutines.flow.MutableStateFlow<HermesMemoryUploadUiState>(HermesMemoryUploadUiState.Idle)
+        private set
+
+    var conversationSyncState = kotlinx.coroutines.flow.MutableStateFlow<HermesConversationSyncUiState>(HermesConversationSyncUiState.Idle)
         private set
 
     fun setBaseUrl(value: String) {
@@ -249,6 +255,21 @@ class SettingHermesViewModel(
     fun clearImportedMemoryMutations() {
         viewModelScope.launch {
             memoryMutationRepository.clearCompleted()
+        }
+    }
+
+    fun importRecentConversations() {
+        viewModelScope.launch {
+            conversationSyncState.value = HermesConversationSyncUiState.Loading
+            runCatching {
+                conversationSyncRepository.importRecent(limit = 10)
+            }.onSuccess { summary ->
+                conversationSyncState.value = HermesConversationSyncUiState.Success(summary)
+            }.onFailure { error ->
+                conversationSyncState.value = HermesConversationSyncUiState.Error(
+                    error.message ?: error::class.java.simpleName
+                )
+            }
         }
     }
 
@@ -441,4 +462,11 @@ sealed interface HermesCacheUiState {
             )
         }
     }
+}
+
+sealed interface HermesConversationSyncUiState {
+    data object Idle : HermesConversationSyncUiState
+    data object Loading : HermesConversationSyncUiState
+    data class Success(val summary: HermesConversationImportSummary) : HermesConversationSyncUiState
+    data class Error(val message: String) : HermesConversationSyncUiState
 }

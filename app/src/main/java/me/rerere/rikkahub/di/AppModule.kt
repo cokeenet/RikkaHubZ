@@ -62,6 +62,7 @@ val appModule = module {
     single { me.rerere.rikkahub.hermes.HermesContextPromptBuilder() }
     single { me.rerere.rikkahub.hermes.HermesRouteResolver() }
     single { me.rerere.rikkahub.hermes.HermesChatRouter(get(), get(), get()) }
+    single { me.rerere.rikkahub.hermes.HermesConversationSyncRepository(get(), get(), get()) }
     single { me.rerere.rikkahub.browser.BrowserPreferences(get()) }
     single { me.rerere.rikkahub.data.preferences.TermuxPreferences(get()) }
     // Pass 3: Telegram-bound screenshot streamer for headless browser mode. Bound to the

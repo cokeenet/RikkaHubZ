@@ -3,6 +3,7 @@ package me.rerere.rikkahub.hermes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,6 +31,18 @@ class HermesBridgeClient(
 
     suspend fun getSyncStatus(config: HermesBridgeConfig): HermesSyncStatusResponse {
         return get(config, "/api/sync/status", requiresToken = true)
+    }
+
+    suspend fun getConversations(config: HermesBridgeConfig): HermesConversationListResponse {
+        return get(config, "/api/conversations", requiresToken = true)
+    }
+
+    suspend fun getConversation(
+        config: HermesBridgeConfig,
+        id: String,
+    ): HermesConversationDetailResponse {
+        val encodedId = id.toHttpUrlPathSegment()
+        return get(config, "/api/conversations/$encodedId", requiresToken = true)
     }
 
     suspend fun runSync(config: HermesBridgeConfig): HermesSyncRunResponse {
@@ -140,4 +153,13 @@ class HermesBridgeClient(
             json.decodeFromString(body)
         }
     }
+}
+
+private fun String.toHttpUrlPathSegment(): String {
+    return "http://localhost/".toHttpUrl()
+        .newBuilder()
+        .addPathSegment(this)
+        .build()
+        .encodedPath
+        .removePrefix("/")
 }
