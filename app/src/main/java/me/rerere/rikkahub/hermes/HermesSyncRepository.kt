@@ -7,6 +7,8 @@ class HermesSyncRepository(
 ) {
     val snapshotFlow = snapshotStore.flow
 
+    suspend fun currentBridgeConfig(): HermesBridgeConfig = preferences.current()
+
     suspend fun currentSnapshot(): HermesSnapshot? = snapshotStore.current()
 
     suspend fun syncNow(): HermesSnapshot {

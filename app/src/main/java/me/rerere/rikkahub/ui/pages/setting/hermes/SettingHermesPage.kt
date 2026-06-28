@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -49,6 +50,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download01
+import me.rerere.hugeicons.stroke.Home01
 import me.rerere.hugeicons.stroke.Link02
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.ServerStack01
@@ -57,6 +59,7 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.shortcut.AssistantShortcutInstaller
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -71,6 +74,8 @@ fun SettingHermesPage(
     val probeState by vm.probeState.collectAsStateWithLifecycle()
     val syncState by vm.syncState.collectAsStateWithLifecycle()
     val cacheState by vm.cacheState.collectAsStateWithLifecycle()
+    val hermesAssistant by vm.hermesAssistant.collectAsStateWithLifecycle()
+    val routeState by vm.routeState.collectAsStateWithLifecycle()
     val bridgeSyncState by vm.bridgeSyncState.collectAsStateWithLifecycle()
     val memoryQueueState by vm.memoryQueueState.collectAsStateWithLifecycle()
     val memoryMutationState by vm.memoryMutationState.collectAsStateWithLifecycle()
@@ -87,6 +92,7 @@ fun SettingHermesPage(
     var apiTokenFocused by remember { mutableStateOf(false) }
     var fallbackProviderFocused by remember { mutableStateOf(false) }
     var tokenVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(config.baseUrl, baseUrlFocused) {
         if (!baseUrlFocused && baseUrlText != config.baseUrl) {
@@ -121,6 +127,40 @@ fun SettingHermesPage(
             contentPadding = innerPadding + PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    title = { Text("Hermes 助手") },
+                ) {
+                    item(
+                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                        headlineContent = { Text(hermesAssistant.name.ifBlank { "Hermes" }) },
+                        supportingContent = {
+                            Text(
+                                "独立助手 ID: ${hermesAssistant.id}\n" +
+                                    "头像跟随助手: ${if (hermesAssistant.useAssistantAvatar) "是" else "否"}"
+                            )
+                        },
+                        trailingContent = {
+                            OutlinedButton(
+                                onClick = {
+                                    AssistantShortcutInstaller.requestPinShortcut(context, hermesAssistant)
+                                },
+                            ) {
+                                Icon(HugeIcons.Home01, null)
+                            }
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Refresh03, null) },
+                        headlineContent = { Text(routeState.title) },
+                        supportingContent = { Text(routeState.diagnostic) },
+                    )
+                }
+            }
+
             item {
                 CardGroup(
                     modifier = Modifier

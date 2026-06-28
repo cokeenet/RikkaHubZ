@@ -163,6 +163,7 @@ val dataSourceModule = module {
             systemPromptBuilder = get(),
             hermesSyncRepository = get(),
             hermesContextPromptBuilder = get(),
+            hermesRouteResolver = get(),
         )
     }
 

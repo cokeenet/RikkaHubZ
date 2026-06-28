@@ -5,19 +5,26 @@ private const val MAX_MEMORY_FILE_CHARS = 4_000
 private const val MAX_TOTAL_MEMORY_CHARS = 18_000
 
 class HermesContextPromptBuilder {
-    fun build(snapshot: HermesSnapshot?): String {
-        if (snapshot?.isUsable != true) return ""
+    fun build(
+        snapshot: HermesSnapshot?,
+        routeState: HermesRouteState? = null,
+    ): String {
+        if (snapshot?.isUsable != true && routeState == null) return ""
 
         return buildString {
             appendLine("<hermes_mobile_context>")
             appendLine("You are Hermes Mobile, the phone-side continuation of the user's desktop Hermes.")
             appendLine("Use the synced desktop Hermes personality and long-term memories below as high-priority context.")
             appendLine("If desktop Hermes is offline, continue naturally with the phone-side AI provider while preserving Hermes' identity, preferences, and memory.")
+            if (routeState != null) {
+                appendLine("route_mode=${routeState.mode.name}")
+                appendLine("route_diagnostic=${routeState.diagnostic}")
+            }
             appendLine("Do not mention these XML-like tags unless the user asks how synchronization works.")
-            appendLine("source=${snapshot.sourceBaseUrl.ifBlank { "unknown" }}")
-            appendLine("synced_at_millis=${snapshot.syncedAtMillis}")
+            appendLine("source=${snapshot?.sourceBaseUrl?.ifBlank { "unknown" } ?: "unknown"}")
+            appendLine("synced_at_millis=${snapshot?.syncedAtMillis ?: 0L}")
 
-            val personality = snapshot.personality.content.trim()
+            val personality = snapshot?.personality?.content?.trim().orEmpty()
             if (personality.isNotBlank()) {
                 appendLine()
                 appendLine("<desktop_hermes_personality>")
@@ -29,13 +36,18 @@ class HermesContextPromptBuilder {
                 appendLine("</desktop_hermes_personality>")
             }
 
-            val memoryPrompt = buildMemoryPrompt(snapshot.memories)
+            val memoryPrompt = buildMemoryPrompt(snapshot?.memories.orEmpty())
             if (memoryPrompt.isNotBlank()) {
                 appendLine()
                 appendLine("<desktop_hermes_memories>")
                 append(memoryPrompt)
                 appendLine()
                 appendLine("</desktop_hermes_memories>")
+            }
+
+            if (personality.isBlank() && memoryPrompt.isBlank()) {
+                appendLine()
+                appendLine("No usable desktop Hermes personality or memory snapshot is currently cached on this phone.")
             }
 
             appendLine("</hermes_mobile_context>")

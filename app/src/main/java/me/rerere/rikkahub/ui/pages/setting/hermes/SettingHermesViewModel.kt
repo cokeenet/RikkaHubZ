@@ -8,23 +8,31 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.hermes.DEFAULT_HERMES_ASSISTANT
 import me.rerere.rikkahub.hermes.HermesBridgeClient
 import me.rerere.rikkahub.hermes.HermesBridgeConfig
 import me.rerere.rikkahub.hermes.HermesBridgePreferences
+import me.rerere.rikkahub.hermes.HERMES_ASSISTANT_ID
 import me.rerere.rikkahub.hermes.HermesMemoryMutation
 import me.rerere.rikkahub.hermes.HermesMemoryMutationRepository
 import me.rerere.rikkahub.hermes.HermesMemoryQueueSummary
 import me.rerere.rikkahub.hermes.HermesMemoryUploadSummary
+import me.rerere.rikkahub.hermes.HermesRouteMode
+import me.rerere.rikkahub.hermes.HermesRouteResolver
 import me.rerere.rikkahub.hermes.HermesSnapshot
 import me.rerere.rikkahub.hermes.HermesSyncRunPhaseResult
 import me.rerere.rikkahub.hermes.HermesSyncStatusResponse
 import me.rerere.rikkahub.hermes.HermesSyncRepository
 
 class SettingHermesViewModel(
+    private val settingsStore: SettingsStore,
     private val preferences: HermesBridgePreferences,
     private val client: HermesBridgeClient,
     private val syncRepository: HermesSyncRepository,
     private val memoryMutationRepository: HermesMemoryMutationRepository,
+    private val routeResolver: HermesRouteResolver,
 ) : ViewModel() {
     val config: StateFlow<HermesBridgeConfig> = preferences.flow.stateIn(
         scope = viewModelScope,
@@ -41,6 +49,29 @@ class SettingHermesViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HermesCacheUiState.Empty,
+    )
+
+    val hermesAssistant: StateFlow<Assistant> = settingsStore.settingsFlow.map { settings ->
+        settings.assistants.firstOrNull { it.id == HERMES_ASSISTANT_ID } ?: DEFAULT_HERMES_ASSISTANT
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DEFAULT_HERMES_ASSISTANT,
+    )
+
+    val routeState: StateFlow<HermesRouteUiState> = combine(
+        hermesAssistant,
+        config,
+        syncRepository.snapshotFlow,
+    ) { assistant, config, snapshot ->
+        HermesRouteUiState.from(routeResolver.resolve(assistant, config, snapshot))
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = HermesRouteUiState(
+            title = "Hermes 路由待确认",
+            diagnostic = "正在读取 Hermes 助手、Bridge 配置和手机缓存状态",
+        ),
     )
 
     val memoryQueueState: StateFlow<HermesMemoryQueueUiState> =
@@ -225,6 +256,24 @@ class SettingHermesViewModel(
         viewModelScope.launch {
             syncRepository.clearSnapshot()
             syncState.value = HermesSyncUiState.Idle
+        }
+    }
+}
+
+data class HermesRouteUiState(
+    val title: String,
+    val diagnostic: String,
+) {
+    companion object {
+        fun from(state: me.rerere.rikkahub.hermes.HermesRouteState): HermesRouteUiState {
+            return HermesRouteUiState(
+                title = when (state.mode) {
+                    HermesRouteMode.NotHermes -> "当前不是 Hermes 助手"
+                    HermesRouteMode.BridgePreferred -> "优先连接电脑端 Hermes"
+                    HermesRouteMode.PhoneFallback -> "手机端离线分身可用"
+                },
+                diagnostic = state.diagnostic,
+            )
         }
     }
 }
