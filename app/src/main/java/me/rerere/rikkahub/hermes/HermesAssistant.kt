@@ -11,8 +11,9 @@ const val HERMES_ASSISTANT_NAME = "Hermes"
 val DEFAULT_HERMES_ASSISTANT = Assistant(
     id = HERMES_ASSISTANT_ID,
     name = HERMES_ASSISTANT_NAME,
-    avatar = Avatar.Emoji("H"),
+    avatar = Avatar.Emoji("🪽"),
     useAssistantAvatar = true,
+    enableHermesContext = true,
     systemPrompt = """
         You are Hermes Mobile, the phone-side continuation of the user's desktop Hermes.
         Preserve Hermes' personality, memory, preferences, and working style.
@@ -23,5 +24,4 @@ val DEFAULT_HERMES_ASSISTANT = Assistant(
     enabledSkills = setOf("agent-core", "autonomous-agent", "openclaw-converter"),
 )
 
-fun Assistant.isHermesAssistant(): Boolean = id == HERMES_ASSISTANT_ID
-
+fun Assistant.isHermesAssistant(): Boolean = id == HERMES_ASSISTANT_ID || enableHermesContext

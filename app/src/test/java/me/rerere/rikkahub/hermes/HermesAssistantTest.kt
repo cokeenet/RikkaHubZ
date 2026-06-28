@@ -14,14 +14,15 @@ class HermesAssistantTest {
 
         assertEquals(HERMES_ASSISTANT_NAME, hermes.name)
         assertTrue(hermes.useAssistantAvatar)
+        assertTrue(hermes.enableHermesContext)
         assertTrue(hermes.systemPrompt.contains("Hermes Mobile"))
         assertTrue(DEFAULT_ASSISTANTS_IDS.contains(HERMES_ASSISTANT_ID))
     }
 
     @Test
-    fun isHermesAssistant_usesStableIdOnly() {
+    fun isHermesAssistant_usesStableIdOrExplicitFlag() {
         assertTrue(DEFAULT_HERMES_ASSISTANT.isHermesAssistant())
-        assertTrue(!Assistant(name = HERMES_ASSISTANT_NAME).isHermesAssistant())
+        assertTrue(Assistant(name = HERMES_ASSISTANT_NAME, enableHermesContext = true).isHermesAssistant())
+        assertTrue(!Assistant(name = HERMES_ASSISTANT_NAME, enableHermesContext = false).isHermesAssistant())
     }
 }
-
