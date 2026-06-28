@@ -93,6 +93,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.hermes.HermesChatRouter
 import me.rerere.rikkahub.hermes.HermesDesktopReplyResult
+import me.rerere.rikkahub.hermes.isHermesAssistant
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
@@ -1069,6 +1070,8 @@ class ChatService(
         notifyOnCompletion: Boolean,
         processingStatus: MutableStateFlow<String?>,
     ): Boolean {
+        if (!assistant.isHermesAssistant()) return false
+
         processingStatus.value = "正在连接电脑端 Hermes..."
         return when (val result = hermesChatRouter.tryDesktopReply(
             conversationId = conversationId.toString(),
