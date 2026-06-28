@@ -8,6 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class HermesBridgeClient(
     private val okHttpClient: OkHttpClient,
@@ -44,6 +45,19 @@ class HermesBridgeClient(
             path = "/api/memory/import",
             bodyJson = json.encodeToString(request),
             treatConflictAsBody = true,
+        )
+    }
+
+    suspend fun chat(
+        config: HermesBridgeConfig,
+        request: HermesChatRequest,
+    ): HermesChatResponse {
+        return post(
+            config = config,
+            path = "/api/chat",
+            bodyJson = json.encodeToString(request),
+            treatConflictAsBody = false,
+            shortTimeout = true,
         )
     }
 
@@ -91,6 +105,7 @@ class HermesBridgeClient(
         path: String,
         bodyJson: String?,
         treatConflictAsBody: Boolean,
+        shortTimeout: Boolean = false,
     ): T = withContext(Dispatchers.IO) {
         val baseUrl = config.baseUrl.trim().trimEnd('/')
         if (baseUrl.isBlank()) {
@@ -107,7 +122,17 @@ class HermesBridgeClient(
             .post(requestBody)
             .build()
 
-        okHttpClient.newCall(request).execute().use { response ->
+        val client = if (shortTimeout) {
+            okHttpClient.newBuilder()
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .callTimeout(35, TimeUnit.SECONDS)
+                .build()
+        } else {
+            okHttpClient
+        }
+
+        client.newCall(request).execute().use { response ->
             val body = response.body.string()
             if (!response.isSuccessful && !(treatConflictAsBody && response.code == 409)) {
                 throw IOException("Hermes Bridge request failed: HTTP ${response.code} ${body.take(160)}")

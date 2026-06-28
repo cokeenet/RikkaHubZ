@@ -1,6 +1,31 @@
 package me.rerere.rikkahub.hermes
 
 import kotlinx.serialization.Serializable
+import me.rerere.ai.core.MessageRole
+
+@Serializable
+data class HermesChatMessage(
+    val role: MessageRole,
+    val text: String,
+)
+
+@Serializable
+data class HermesChatRequest(
+    val conversationId: String,
+    val assistantId: String,
+    val modelId: String,
+    val messages: List<HermesChatMessage>,
+    val routeDiagnostic: String = "",
+)
+
+@Serializable
+data class HermesChatResponse(
+    val success: Boolean = false,
+    val reply: String = "",
+    val modelId: String = "",
+    val source: String = "",
+    val error: String? = null,
+)
 
 @Serializable
 data class HermesStatusResponse(

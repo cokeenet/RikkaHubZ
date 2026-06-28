@@ -91,6 +91,8 @@ import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.hermes.HermesChatRouter
+import me.rerere.rikkahub.hermes.HermesDesktopReplyResult
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
@@ -160,6 +162,7 @@ class ChatService(
     private val skillManager: SkillManager,
     private val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences,
     private val workspaceRepository: WorkspaceRepository,
+    private val hermesChatRouter: HermesChatRouter,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -806,6 +809,19 @@ class ChatService(
 
             // start generating
             val session = getOrCreateSession(conversationId)
+            if (tryHermesDesktopReply(
+                    conversationId = conversationId,
+                    assistant = assistant,
+                    model = model,
+                    conversation = conversation,
+                    senderName = senderName,
+                    notifyOnCompletion = settings.displaySetting.enableNotificationOnMessageGeneration,
+                    processingStatus = session.processingStatus,
+                )
+            ) {
+                return@runCatching
+            }
+
             generationHandler.generateText(
                 settings = settings,
                 model = model,
@@ -1040,6 +1056,58 @@ class ChatService(
             }
             launchWithConversationReference(conversationId) {
                 generateSuggestion(conversationId, finalConversation)
+            }
+        }
+    }
+
+    private suspend fun tryHermesDesktopReply(
+        conversationId: Uuid,
+        assistant: Assistant,
+        model: Model,
+        conversation: Conversation,
+        senderName: String,
+        notifyOnCompletion: Boolean,
+        processingStatus: MutableStateFlow<String?>,
+    ): Boolean {
+        processingStatus.value = "正在连接电脑端 Hermes..."
+        return when (val result = hermesChatRouter.tryDesktopReply(
+            conversationId = conversationId.toString(),
+            assistant = assistant,
+            model = model,
+            messages = conversation.currentMessages,
+        )) {
+            is HermesDesktopReplyResult.Replied -> {
+                val withAssistant = conversation.copy(
+                    messageNodes = conversation.messageNodes + UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(UIMessagePart.Text(result.text)),
+                        modelId = model.id,
+                    ).toMessageNode(),
+                    chatSuggestions = emptyList(),
+                    updateAt = Instant.now(),
+                )
+                saveConversation(conversationId, withAssistant)
+                processingStatus.value = null
+                if (!isForeground.value && notifyOnCompletion) {
+                    sendGenerationDoneNotification(conversationId, senderName)
+                }
+                Log.i(
+                    TAG,
+                    "tryHermesDesktopReply: replied via ${result.source}, model=${result.modelId.ifBlank { model.modelId }}"
+                )
+                true
+            }
+
+            is HermesDesktopReplyResult.Skipped -> {
+                processingStatus.value = null
+                Log.d(TAG, "tryHermesDesktopReply: skipped: ${result.reason}")
+                false
+            }
+
+            is HermesDesktopReplyResult.Failed -> {
+                processingStatus.value = "电脑端 Hermes 不可用，已切换到手机端 Provider"
+                Log.i(TAG, "tryHermesDesktopReply: fallback to phone provider: ${result.reason}")
+                false
             }
         }
     }
