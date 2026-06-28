@@ -976,6 +976,13 @@ class GenerationHandler(
             requestedProviderImpl = providerImpl,
             messages = scopedMessages,
         )
+        Log.i(
+            TAG,
+            "generateInternal: requested=${model.displayName.ifBlank { model.modelId }}(${model.id}), " +
+                "target=${target.model.displayName.ifBlank { target.model.modelId }}(${target.model.id}), " +
+                "latestHasImage=${scopedMessages.latestMessageContainsImageParts()}, " +
+                "strategy=${settings.nonVisionImageStrategy.preferenceName}"
+        )
         val preTransformMessages = buildList {
             // Conversation-level system prompt override (upstream): when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.

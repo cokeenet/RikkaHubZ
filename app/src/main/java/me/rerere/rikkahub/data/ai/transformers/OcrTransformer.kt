@@ -66,9 +66,16 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         return withContext(Dispatchers.IO) {
             try {
                 ctx.processingStatus.value = ctx.context.getString(R.string.ocr_status_recognizing)
-                messages.replaceImagesForTextModel { image ->
-                    UIMessagePart.Text(performOcr(image))
-                }
+                messages.replaceImagesForTextModel(
+                    latestReplacement = { image ->
+                        UIMessagePart.Text(performOcr(image))
+                    },
+                    historicalReplacement = { image ->
+                        UIMessagePart.Text(
+                            "[Image omitted from earlier context for this text-only turn: ${image.url}]"
+                        )
+                    }
+                )
             } finally {
                 ctx.processingStatus.value = null
             }
@@ -138,8 +145,10 @@ internal fun UIMessagePart.containsImage(): Boolean = when (this) {
 }
 
 internal suspend fun List<UIMessage>.replaceImagesForTextModel(
-    replacement: suspend (UIMessagePart.Image) -> UIMessagePart.Text,
-): List<UIMessage> = map { message ->
+    latestReplacement: suspend (UIMessagePart.Image) -> UIMessagePart.Text,
+    historicalReplacement: suspend (UIMessagePart.Image) -> UIMessagePart.Text = latestReplacement,
+): List<UIMessage> = mapIndexed { index, message ->
+    val replacement = if (index == lastIndex) latestReplacement else historicalReplacement
     message.copy(parts = replaceMessagePartImages(message.parts, replacement))
 }
 

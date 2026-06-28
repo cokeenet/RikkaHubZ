@@ -44,13 +44,49 @@ class NonVisionImageFallbackTest {
             )
         )
 
-        val replaced = messages.replaceImagesForTextModel { image ->
-            UIMessagePart.Text("[described ${image.url}]")
-        }
+        val replaced = messages.replaceImagesForTextModel(
+            latestReplacement = { image ->
+                UIMessagePart.Text("[described ${image.url}]")
+            }
+        )
         val tool = replaced.single().parts.single() as UIMessagePart.Tool
 
         assertEquals("[described file:///cache/screenshots/screen.png]", (tool.output[0] as UIMessagePart.Text).text)
         assertEquals("{\"success\":true}", (tool.output[1] as UIMessagePart.Text).text)
         assertFalse(tool.output.any { it is UIMessagePart.Image })
+    }
+
+    @Test
+    fun replaceImagesForTextModel_usesHistoricalReplacementForOlderImages() = runBlocking {
+        val messages = listOf(
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Tool(
+                        toolCallId = "call-1",
+                        toolName = "take_screenshot",
+                        input = "{}",
+                        output = listOf(UIMessagePart.Image("file:///cache/screenshots/old.png")),
+                    )
+                ),
+            ),
+            UIMessage.user("现在只回答这个纯文字问题"),
+        )
+
+        var latestReplacementCalls = 0
+        val replaced = messages.replaceImagesForTextModel(
+            latestReplacement = { image ->
+                latestReplacementCalls++
+                UIMessagePart.Text("[latest ${image.url}]")
+            },
+            historicalReplacement = { image ->
+                UIMessagePart.Text("[historical ${image.url}]")
+            },
+        )
+        val tool = replaced.first().parts.single() as UIMessagePart.Tool
+
+        assertEquals(0, latestReplacementCalls)
+        assertEquals("[historical file:///cache/screenshots/old.png]", (tool.output.single() as UIMessagePart.Text).text)
+        assertFalse(replaced.any { message -> message.parts.any { it.containsImage() } })
     }
 }
