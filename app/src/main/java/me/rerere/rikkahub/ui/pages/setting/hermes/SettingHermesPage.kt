@@ -379,8 +379,8 @@ fun SettingHermesPage(
                 ) {
                     item(
                         leadingContent = { Icon(HugeIcons.Download01, null) },
-                        headlineContent = { Text("导入最近电脑会话") },
-                        supportingContent = { Text("从 Bridge 拉取最近 10 个文本会话并导入 Hermes 助手本地会话库") },
+                        headlineContent = { Text("导入电脑会话") },
+                        supportingContent = { Text("从 Bridge 拉取文本会话并导入 Hermes 助手本地会话库") },
                         trailingContent = {
                             Button(
                                 onClick = vm::importRecentConversations,

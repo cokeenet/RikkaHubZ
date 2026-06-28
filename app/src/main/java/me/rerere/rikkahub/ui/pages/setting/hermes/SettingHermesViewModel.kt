@@ -262,7 +262,7 @@ class SettingHermesViewModel(
         viewModelScope.launch {
             conversationSyncState.value = HermesConversationSyncUiState.Loading
             runCatching {
-                conversationSyncRepository.importRecent(limit = 10)
+                conversationSyncRepository.importRecent()
             }.onSuccess { summary ->
                 conversationSyncState.value = HermesConversationSyncUiState.Success(summary)
             }.onFailure { error ->

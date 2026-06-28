@@ -34,7 +34,7 @@ class HermesConversationSyncRepository(
         )
     }
 
-    suspend fun importRecent(limit: Int = 10): HermesConversationImportSummary {
+    suspend fun importRecent(limit: Int = Int.MAX_VALUE): HermesConversationImportSummary {
         val list = listDesktopConversations()
         val imported = mutableListOf<HermesConversationImportResult>()
         list.conversations.take(limit).forEach { summary ->
