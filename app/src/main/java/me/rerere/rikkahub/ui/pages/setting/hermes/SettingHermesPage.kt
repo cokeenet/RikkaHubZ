@@ -71,11 +71,18 @@ fun SettingHermesPage(
     val probeState by vm.probeState.collectAsStateWithLifecycle()
     val syncState by vm.syncState.collectAsStateWithLifecycle()
     val cacheState by vm.cacheState.collectAsStateWithLifecycle()
+    val bridgeSyncState by vm.bridgeSyncState.collectAsStateWithLifecycle()
+    val memoryQueueState by vm.memoryQueueState.collectAsStateWithLifecycle()
+    val memoryMutationState by vm.memoryMutationState.collectAsStateWithLifecycle()
+    val memoryUploadState by vm.memoryUploadState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var baseUrlText by rememberSaveable { mutableStateOf(config.baseUrl) }
     var apiTokenText by rememberSaveable { mutableStateOf(config.apiToken) }
     var fallbackProviderText by rememberSaveable { mutableStateOf(config.fallbackProviderId) }
+    var memoryTargetIdText by rememberSaveable { mutableStateOf("mobile.md") }
+    var memoryBaseHashText by rememberSaveable { mutableStateOf("") }
+    var memoryContentText by rememberSaveable { mutableStateOf("") }
     var baseUrlFocused by remember { mutableStateOf(false) }
     var apiTokenFocused by remember { mutableStateOf(false) }
     var fallbackProviderFocused by remember { mutableStateOf(false) }
@@ -272,6 +279,162 @@ fun SettingHermesPage(
             item {
                 SyncResult(state = syncState)
             }
+
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    title = { Text("电脑端同步") },
+                ) {
+                    item(
+                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                        headlineContent = { Text("Bridge 同步状态") },
+                        supportingContent = { Text("查看电脑端最近一次同步阶段、结果和错误") },
+                        trailingContent = {
+                            OutlinedButton(
+                                onClick = vm::refreshBridgeSyncStatus,
+                                enabled = bridgeSyncState !is HermesBridgeSyncUiState.Loading &&
+                                    bridgeSyncState !is HermesBridgeSyncUiState.RunningAction,
+                            ) {
+                                Text("刷新")
+                            }
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Refresh03, null) },
+                        headlineContent = { Text("触发电脑同步") },
+                        supportingContent = { Text("请求电脑端 Bridge 立即执行一次同步，不会拉取到手机缓存") },
+                        trailingContent = {
+                            Button(
+                                onClick = vm::triggerBridgeSync,
+                                enabled = bridgeSyncState !is HermesBridgeSyncUiState.Loading &&
+                                    bridgeSyncState !is HermesBridgeSyncUiState.RunningAction,
+                            ) {
+                                if (bridgeSyncState is HermesBridgeSyncUiState.RunningAction) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text("触发")
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+
+            item {
+                BridgeSyncResult(state = bridgeSyncState)
+            }
+
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    title = { Text("手机记忆队列") },
+                ) {
+                    item(
+                        leadingContent = { Icon(HugeIcons.Database02, null) },
+                        headlineContent = { Text("新增待上传记忆") },
+                        supportingContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                HermesInputItem(
+                                    leadingContent = { Icon(HugeIcons.Database02, null) },
+                                    title = "Target ID",
+                                    description = "电脑端记忆文件 ID，例如 mobile.md 或 daily.md",
+                                    value = memoryTargetIdText,
+                                    onValueChange = { memoryTargetIdText = it },
+                                )
+                                HermesInputItem(
+                                    leadingContent = { Icon(HugeIcons.Shield01, null) },
+                                    title = "Base Hash",
+                                    description = "可选；留空表示直接导入，填写后用于冲突检测",
+                                    value = memoryBaseHashText,
+                                    onValueChange = { memoryBaseHashText = it },
+                                )
+                                HermesTextAreaItem(
+                                    title = "内容",
+                                    description = "手机离线期间产生的新记忆内容",
+                                    value = memoryContentText,
+                                    onValueChange = { memoryContentText = it },
+                                )
+                            }
+                        },
+                        trailingContent = {
+                            Button(
+                                onClick = {
+                                    vm.createMemoryMutation(
+                                        targetId = memoryTargetIdText,
+                                        content = memoryContentText,
+                                        baseHash = memoryBaseHashText,
+                                    )
+                                },
+                                enabled = memoryMutationState !is HermesMemoryMutationUiState.Loading,
+                            ) {
+                                if (memoryMutationState is HermesMemoryMutationUiState.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text("加入")
+                                }
+                            }
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Refresh03, null) },
+                        headlineContent = { Text("上传待处理记忆") },
+                        supportingContent = {
+                            Text(
+                                "总数: ${memoryQueueState.summary.total}\n" +
+                                    "待上传: ${memoryQueueState.summary.pending}，失败待重试: ${memoryQueueState.summary.failed}\n" +
+                                    "已导入: ${memoryQueueState.summary.imported}，冲突: ${memoryQueueState.summary.conflict}"
+                            )
+                        },
+                        trailingContent = {
+                            Button(
+                                onClick = vm::uploadMemoryMutations,
+                                enabled = memoryQueueState.summary.hasRetryable &&
+                                    memoryUploadState !is HermesMemoryUploadUiState.Loading,
+                            ) {
+                                if (memoryUploadState is HermesMemoryUploadUiState.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text("上传")
+                                }
+                            }
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Delete01, null) },
+                        headlineContent = { Text("清理已导入记录") },
+                        supportingContent = { Text("只清理手机侧队列中已成功导入的 mutation") },
+                        trailingContent = {
+                            OutlinedButton(
+                                onClick = vm::clearImportedMemoryMutations,
+                                enabled = memoryQueueState.summary.imported > 0,
+                            ) {
+                                Text("清理")
+                            }
+                        },
+                    )
+                }
+            }
+
+            item {
+                MemoryQueueResult(
+                    mutationState = memoryMutationState,
+                    uploadState = memoryUploadState,
+                    queueState = memoryQueueState,
+                )
+            }
         }
     }
 }
@@ -343,6 +506,48 @@ private fun HermesInputItem(
 }
 
 @Composable
+private fun HermesTextAreaItem(
+    title: String,
+    description: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit = {},
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            minLines = 3,
+            maxLines = 8,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 104.dp)
+                .onFocusChanged { onFocusChanged(it.isFocused) },
+            textStyle = MaterialTheme.typography.bodyLarge,
+            shape = RoundedCornerShape(22.dp),
+            colors = textFieldColors(),
+        )
+    }
+}
+
+@Composable
 private fun ProbeResult(state: HermesProbeUiState) {
     when (state) {
         HermesProbeUiState.Idle -> {
@@ -401,6 +606,102 @@ private fun ProbeResult(state: HermesProbeUiState) {
 }
 
 @Composable
+private fun BridgeSyncResult(state: HermesBridgeSyncUiState) {
+    when (state) {
+        HermesBridgeSyncUiState.Idle -> {
+            ListItem(
+                headlineContent = { Text("尚未读取电脑端同步状态") },
+                supportingContent = { Text("点击刷新状态或触发电脑同步") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        HermesBridgeSyncUiState.Loading -> {
+            ListItem(
+                headlineContent = { Text("正在读取电脑端同步状态") },
+                supportingContent = { Text("请稍候") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesBridgeSyncUiState.RunningAction -> {
+            ListItem(
+                headlineContent = { Text("正在触发电脑同步") },
+                supportingContent = { Text(state.lastKnown?.diagnosticMessage ?: "请求已发送") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesBridgeSyncUiState.Available -> {
+            BridgeSyncStatusItem(
+                status = state.status,
+                actionMessage = state.actionMessage,
+            )
+        }
+
+        is HermesBridgeSyncUiState.Error -> {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "电脑端同步状态读取失败",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        state.message +
+                            (state.lastKnown?.let { "\n上次已知状态: ${it.headline}，${it.diagnosticMessage}" } ?: "")
+                    )
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BridgeSyncStatusItem(
+    status: BridgeSyncStatusUi,
+    actionMessage: String?,
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = status.headline,
+                color = if (status.lastSucceeded == false) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+        },
+        supportingContent = {
+            val phaseText = status.lastPhaseResults
+                .takeLast(4)
+                .joinToString(separator = "\n") { phase ->
+                    "${phase.phase}: ${if (phase.success) "成功" else "失败"} ${phase.message}".trim()
+                }
+            Text(
+                buildString {
+                    actionMessage?.let {
+                        appendLine(it)
+                    }
+                    appendLine(status.diagnosticMessage)
+                    appendLine("触发来源: ${status.lastTrigger.ifBlank { "未知" }}")
+                    appendLine("开始时间: ${status.lastStartedAtUtc ?: "未知"}")
+                    if (phaseText.isNotBlank()) {
+                        appendLine("阶段结果:")
+                        append(phaseText)
+                    }
+                }.trim()
+            )
+        },
+        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+@Composable
 private fun SyncResult(state: HermesSyncUiState) {
     when (state) {
         HermesSyncUiState.Idle -> {
@@ -451,6 +752,66 @@ private fun SyncResult(state: HermesSyncUiState) {
             )
         }
     }
+}
+
+@Composable
+private fun MemoryQueueResult(
+    mutationState: HermesMemoryMutationUiState,
+    uploadState: HermesMemoryUploadUiState,
+    queueState: HermesMemoryQueueUiState,
+) {
+    val latestMutations = queueState.mutations.takeLast(4).asReversed()
+    val message = buildString {
+        when (mutationState) {
+            HermesMemoryMutationUiState.Idle -> Unit
+            HermesMemoryMutationUiState.Loading -> appendLine("正在加入记忆队列")
+            is HermesMemoryMutationUiState.Success -> appendLine("已加入队列: ${mutationState.mutationId.take(8)}")
+            is HermesMemoryMutationUiState.Error -> appendLine("加入失败: ${mutationState.message}")
+        }
+
+        when (uploadState) {
+            HermesMemoryUploadUiState.Idle -> Unit
+            HermesMemoryUploadUiState.Loading -> appendLine("正在上传待处理记忆")
+            is HermesMemoryUploadUiState.Success -> appendLine(
+                "上传完成: 尝试 ${uploadState.summary.attempted}，导入 ${uploadState.summary.imported}，冲突 ${uploadState.summary.conflict}，失败 ${uploadState.summary.failed}"
+            )
+            is HermesMemoryUploadUiState.Error -> appendLine("上传失败: ${uploadState.message}")
+        }
+
+        queueState.summary.latestError?.let { appendLine("最近错误: $it") }
+
+        if (latestMutations.isNotEmpty()) {
+            appendLine("最近记录:")
+            latestMutations.forEach { mutation ->
+                appendLine(
+                    "${mutation.mutationId.take(8)} ${memoryStatusLabel(mutation.status)} -> ${mutation.targetId}"
+                )
+            }
+        }
+    }.trim()
+
+    ListItem(
+        headlineContent = {
+            Text(
+                text = if (queueState.summary.total > 0) "记忆队列已就绪" else "记忆队列为空",
+                color = if (queueState.summary.conflict > 0 || queueState.summary.failed > 0) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+        },
+        supportingContent = { Text(message.ifBlank { "手机离线产生的新记忆会先进入本地队列" }) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+private fun memoryStatusLabel(status: me.rerere.rikkahub.hermes.HermesMemoryMutationStatus): String = when (status) {
+    me.rerere.rikkahub.hermes.HermesMemoryMutationStatus.Pending -> "待上传"
+    me.rerere.rikkahub.hermes.HermesMemoryMutationStatus.Uploading -> "上传中"
+    me.rerere.rikkahub.hermes.HermesMemoryMutationStatus.Imported -> "已导入"
+    me.rerere.rikkahub.hermes.HermesMemoryMutationStatus.Conflict -> "冲突"
+    me.rerere.rikkahub.hermes.HermesMemoryMutationStatus.Failed -> "失败"
 }
 
 private fun formatMillis(value: Long?): String {

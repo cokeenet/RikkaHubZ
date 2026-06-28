@@ -41,6 +41,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -58,6 +59,7 @@ import coil3.svg.SvgDecoder
 import com.dokar.sonner.Toaster
 import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.launch
 import me.rerere.highlight.Highlighter
 import me.rerere.highlight.LocalHighlighter
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -146,6 +148,7 @@ private const val TAG = "RouteActivity"
 class RouteActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_CODEX_SETTINGS = "open_codex_settings"
+        const val EXTRA_OPEN_ASSISTANT_ID = "open_assistant_id"
     }
 
     private val highlighter by inject<Highlighter>()
@@ -246,9 +249,21 @@ class RouteActivity : ComponentActivity() {
             }
             intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
         }
+        intent.getStringExtra(EXTRA_OPEN_ASSISTANT_ID)?.let { assistantId ->
+            openAssistantShortcut(assistantId)
+            intent.removeExtra(EXTRA_OPEN_ASSISTANT_ID)
+        }
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.add(Screen.Chat(text))
+        }
+    }
+
+    private fun openAssistantShortcut(assistantId: String) {
+        lifecycleScope.launch {
+            val parsed = runCatching { Uuid.parse(assistantId) }.getOrNull() ?: return@launch
+            settingsStore.updateAssistant(parsed)
+            navStack?.add(Screen.Chat(Uuid.random().toString()))
         }
     }
 
@@ -288,6 +303,14 @@ class RouteActivity : ComponentActivity() {
                 val destination = Screen.SettingProviderDetail(DEFAULT_CODEX_PROVIDER_ID.toString())
                 if (backStack.lastOrNull() != destination) backStack.add(destination)
                 intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
+            }
+            intent.getStringExtra(EXTRA_OPEN_ASSISTANT_ID)?.let { assistantId ->
+                val parsed = runCatching { Uuid.parse(assistantId) }.getOrNull()
+                if (parsed != null) {
+                    settingsStore.updateAssistant(parsed)
+                    backStack.add(Screen.Chat(Uuid.random().toString()))
+                }
+                intent.removeExtra(EXTRA_OPEN_ASSISTANT_ID)
             }
         }
 

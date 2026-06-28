@@ -15,6 +15,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,6 +48,7 @@ import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.hooks.heroAnimation
+import me.rerere.rikkahub.ui.shortcut.AssistantShortcutInstaller
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toFixed
 import org.koin.androidx.compose.koinViewModel
@@ -105,6 +108,7 @@ internal fun AssistantBasicContent(
     onUpdate: (Assistant) -> Unit,
     vm: AssistantDetailVM
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -134,6 +138,14 @@ internal fun AssistantBasicContent(
                     .size(80.dp)
                     .heroAnimation("assistant_${assistant.id}")
             )
+            OutlinedButton(
+                onClick = {
+                    AssistantShortcutInstaller.requestPinShortcut(context, assistant)
+                },
+                enabled = AssistantShortcutInstaller.isSupported(context),
+            ) {
+                Text(stringResource(R.string.assistant_page_add_desktop_shortcut))
+            }
         }
 
         Card(

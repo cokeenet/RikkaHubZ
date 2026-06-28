@@ -33,6 +33,24 @@ class HermesSyncRepository(
         return snapshot
     }
 
+    suspend fun getBridgeSyncStatus(): HermesSyncStatusResponse {
+        val config = preferences.current()
+        val status = client.getSyncStatus(config)
+        preferences.update {
+            it.copy(lastStatusAt = System.currentTimeMillis())
+        }
+        return status
+    }
+
+    suspend fun runBridgeSync(): HermesSyncRunResponse {
+        val config = preferences.current()
+        val response = client.runSync(config)
+        preferences.update {
+            it.copy(lastStatusAt = System.currentTimeMillis())
+        }
+        return response
+    }
+
     suspend fun clearSnapshot() {
         snapshotStore.clear()
     }
