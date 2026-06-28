@@ -39,3 +39,18 @@ data class HermesBridgeProbeResult(
     val personality: HermesPersonalityResponse,
     val memory: HermesMemoryListResponse,
 )
+
+@Serializable
+data class HermesSnapshot(
+    val syncedAtMillis: Long = 0L,
+    val sourceBaseUrl: String = "",
+    val service: String = "",
+    val status: String = "",
+    val dataRoot: String = "",
+    val personality: HermesPersonalityResponse = HermesPersonalityResponse(),
+    val memories: List<HermesMemoryFileResponse> = emptyList(),
+) {
+    val hasPersonality: Boolean get() = personality.exists && personality.content.isNotBlank()
+    val hasMemories: Boolean get() = memories.any { it.content.isNotBlank() }
+    val isUsable: Boolean get() = hasPersonality || hasMemories
+}

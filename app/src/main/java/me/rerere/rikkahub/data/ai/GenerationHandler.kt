@@ -65,6 +65,8 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.hermes.HermesContextPromptBuilder
+import me.rerere.rikkahub.hermes.HermesSyncRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import kotlin.time.Clock
@@ -292,6 +294,8 @@ class GenerationHandler(
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
     private val systemPromptBuilder: SystemPromptBuilder,
+    private val hermesSyncRepository: HermesSyncRepository,
+    private val hermesContextPromptBuilder: HermesContextPromptBuilder,
 ) {
     fun generateText(
         settings: Settings,
@@ -998,6 +1002,9 @@ class GenerationHandler(
             val recentChatsPrompt = if (assistant.enableRecentChatsReference) {
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""
+            val hermesContextPrompt = hermesContextPromptBuilder.build(
+                hermesSyncRepository.currentSnapshot()
+            )
             val toolPrompts = tools.map { tool -> tool.systemPrompt(target.model, messages) }
             // Split into stable (assistant + tools) and volatile (memory + recent chats +
             // addendum) so prompt caching survives memory injection: the stable part is the
@@ -1005,6 +1012,7 @@ class GenerationHandler(
             val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
                 assistantPrompt = effectiveSystemPrompt,
                 memoryPrompt = memoryPrompt,
+                hermesContextPrompt = hermesContextPrompt,
                 recentChatsPrompt = recentChatsPrompt,
                 toolPrompts = toolPrompts,
                 systemAddendum = systemAddendum,

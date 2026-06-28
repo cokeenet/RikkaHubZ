@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -46,7 +47,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.Link02
+import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Shield01
 import me.rerere.hugeicons.stroke.View
@@ -56,6 +60,8 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
 fun SettingHermesPage(
@@ -63,6 +69,8 @@ fun SettingHermesPage(
 ) {
     val config by vm.config.collectAsStateWithLifecycle()
     val probeState by vm.probeState.collectAsStateWithLifecycle()
+    val syncState by vm.syncState.collectAsStateWithLifecycle()
+    val cacheState by vm.cacheState.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var baseUrlText by rememberSaveable { mutableStateOf(config.baseUrl) }
@@ -203,6 +211,67 @@ fun SettingHermesPage(
             item {
                 ProbeResult(state = probeState)
             }
+
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    title = { Text("离线分身缓存") },
+                ) {
+                    item(
+                        leadingContent = { Icon(HugeIcons.Download01, null) },
+                        headlineContent = { Text("同步到手机") },
+                        supportingContent = { Text("保存电脑端 Hermes 的人格和记忆，用于电脑离线后的手机侧回答") },
+                        trailingContent = {
+                            Button(
+                                onClick = vm::syncToPhone,
+                                enabled = syncState !is HermesSyncUiState.Loading,
+                            ) {
+                                if (syncState is HermesSyncUiState.Loading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Icon(HugeIcons.Refresh03, null)
+                                }
+                            }
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Database02, null) },
+                        headlineContent = {
+                            Text(if (cacheState.isUsable) "缓存可用" else "暂无可用缓存")
+                        },
+                        supportingContent = {
+                            Text(
+                                "来源: ${cacheState.sourceBaseUrl.ifBlank { "未同步" }}\n" +
+                                    "上次同步: ${formatMillis(cacheState.lastSyncedAt)}\n" +
+                                    "人格: ${if (cacheState.personalityExists) "已缓存" else "未缓存"}\n" +
+                                    "记忆: ${cacheState.memoryCount} 条"
+                            )
+                        },
+                    )
+                    item(
+                        leadingContent = { Icon(HugeIcons.Delete01, null) },
+                        headlineContent = { Text("清除手机缓存") },
+                        supportingContent = { Text("只删除手机侧 Hermes 快照，不会修改电脑端数据") },
+                        trailingContent = {
+                            OutlinedButton(
+                                onClick = vm::clearCache,
+                                enabled = cacheState.isUsable && syncState !is HermesSyncUiState.Loading,
+                            ) {
+                                Text("清除")
+                            }
+                        },
+                    )
+                }
+            }
+
+            item {
+                SyncResult(state = syncState)
+            }
         }
     }
 }
@@ -329,6 +398,64 @@ private fun ProbeResult(state: HermesProbeUiState) {
             )
         }
     }
+}
+
+@Composable
+private fun SyncResult(state: HermesSyncUiState) {
+    when (state) {
+        HermesSyncUiState.Idle -> {
+            ListItem(
+                headlineContent = { Text("等待同步") },
+                supportingContent = { Text("电脑在线时点击同步到手机") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        HermesSyncUiState.Loading -> {
+            ListItem(
+                headlineContent = { Text("正在同步") },
+                supportingContent = { Text("正在拉取人格和记忆") },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesSyncUiState.Success -> {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "同步成功",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        "同步时间: ${formatMillis(state.syncedAtMillis)}\n" +
+                            "人格: ${if (state.personalityExists) "已缓存" else "未缓存"}\n" +
+                            "记忆: ${state.memoryCount} 条"
+                    )
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+
+        is HermesSyncUiState.Error -> {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = "同步失败",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                supportingContent = { Text(state.message) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+    }
+}
+
+private fun formatMillis(value: Long?): String {
+    if (value == null || value <= 0L) return "未同步"
+    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(value))
 }
 
 @Composable

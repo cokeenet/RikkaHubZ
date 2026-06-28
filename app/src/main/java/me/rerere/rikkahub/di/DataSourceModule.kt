@@ -161,6 +161,8 @@ val dataSourceModule = module {
             conversationRepo = get(),
             aiLoggingManager = get(),
             systemPromptBuilder = get(),
+            hermesSyncRepository = get(),
+            hermesContextPromptBuilder = get(),
         )
     }
 

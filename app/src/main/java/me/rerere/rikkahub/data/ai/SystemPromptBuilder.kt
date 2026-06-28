@@ -25,6 +25,7 @@ class SystemPromptBuilder {
     fun buildSections(
         assistantPrompt: String,
         memoryPrompt: String = "",
+        hermesContextPrompt: String = "",
         recentChatsPrompt: String = "",
         toolPrompts: List<String> = emptyList(),
         systemAddendum: String? = null,
@@ -43,6 +44,10 @@ class SystemPromptBuilder {
 
         val volatile = buildString {
             if (memoryPrompt.isNotBlank()) append(memoryPrompt)
+            if (hermesContextPrompt.isNotBlank()) {
+                if (isNotEmpty()) appendLine()
+                append(hermesContextPrompt)
+            }
             if (recentChatsPrompt.isNotBlank()) {
                 if (isNotEmpty()) appendLine()
                 append(recentChatsPrompt)
@@ -61,12 +66,13 @@ class SystemPromptBuilder {
     fun build(
         assistantPrompt: String,
         memoryPrompt: String = "",
+        hermesContextPrompt: String = "",
         recentChatsPrompt: String = "",
         toolPrompts: List<String> = emptyList(),
         systemAddendum: String? = null,
     ): String {
         val (stable, volatile) = buildSections(
-            assistantPrompt, memoryPrompt, recentChatsPrompt, toolPrompts, systemAddendum
+            assistantPrompt, memoryPrompt, hermesContextPrompt, recentChatsPrompt, toolPrompts, systemAddendum
         )
         return listOf(stable, volatile).filter { it.isNotBlank() }.joinToString("\n")
     }
