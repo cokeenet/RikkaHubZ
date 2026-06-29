@@ -25,6 +25,9 @@ import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.audioInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.batteryTool
+import me.rerere.rikkahub.data.ai.tools.local.buildCalendarCreateTool
+import me.rerere.rikkahub.data.ai.tools.local.buildCalendarQueryTool
+import me.rerere.rikkahub.data.ai.tools.local.buildScreenTimeTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
 import me.rerere.rikkahub.data.ai.tools.local.cameraPhotoTool
 import me.rerere.rikkahub.data.ai.tools.local.clickNodeTool
@@ -148,6 +151,8 @@ sealed class LocalToolOption {
     @Serializable @SerialName("wifi_info")      data object WifiInfo       : LocalToolOption()
     @Serializable @SerialName("sensors")        data object Sensors        : LocalToolOption()
     @Serializable @SerialName("storage_info")   data object StorageInfo    : LocalToolOption()
+    @Serializable @SerialName("screen_time")    data object ScreenTime     : LocalToolOption()
+    @Serializable @SerialName("calendar")       data object Calendar       : LocalToolOption()
     @Serializable @SerialName("toast")          data object Toast          : LocalToolOption()
     @Serializable @SerialName("notification")   data object Notification   : LocalToolOption()
     @Serializable @SerialName("share")          data object Share          : LocalToolOption()
@@ -709,6 +714,13 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.StorageInfo)) {
             tools.add(storageTool(context))
+        }
+        if (options.contains(LocalToolOption.ScreenTime)) {
+            tools.add(buildScreenTimeTool(context, eventBus))
+        }
+        if (options.contains(LocalToolOption.Calendar)) {
+            tools.add(buildCalendarQueryTool(context))
+            tools.add(buildCalendarCreateTool(context))
         }
         if (options.contains(LocalToolOption.Toast)) {
             tools.add(toastTool(context, invocationContext, interactiveToolStreamer))

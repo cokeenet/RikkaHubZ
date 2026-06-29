@@ -217,6 +217,9 @@ private fun SearchServiceOptionsEditor(
         is SearchServiceOptions.TinyfishOptions -> {
             TinyfishOptions(options) { onUpdateOptions(it) }
         }
+        is SearchServiceOptions.SerperOptions -> {
+            SerperOptions(options) { onUpdateOptions(it) }
+        }
         is SearchServiceOptions.CustomJsOptions -> {
             CustomJsOptions(options) { onUpdateOptions(it) }
         }
@@ -814,6 +817,26 @@ internal fun RikkaHubOptions(
 internal fun TinyfishOptions(
     options: SearchServiceOptions.TinyfishOptions,
     onUpdateOptions: (SearchServiceOptions.TinyfishOptions) -> Unit
+) {
+    FormItem(
+        label = {
+            Text(stringResource(R.string.search_detail_api_key))
+        }
+    ) {
+        OutlinedTextField(
+            value = options.apiKey,
+            onValueChange = {
+                onUpdateOptions(options.copy(apiKey = it))
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+internal fun SerperOptions(
+    options: SearchServiceOptions.SerperOptions,
+    onUpdateOptions: (SearchServiceOptions.SerperOptions) -> Unit
 ) {
     FormItem(
         label = {

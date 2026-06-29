@@ -23,7 +23,9 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                 name = "search_web",
                 description = """
                     Search the web for up-to-date / specific info. Today: ${LocalDate.now().toLocalString(true)}.
-                    Returns items[].{id, title, url, text}. Cite each statement that uses a result with `[citation,domain](id)` after the sentence; omit citations when nothing was sourced.
+                    Returns items[].{id, title, url, text} and images[] with image urls related to the query.
+                    Cite each statement that uses a result with `[citation,domain](id)` after the sentence; omit citations when nothing was sourced.
+                    When images help the user understand the answer, embed 2 to 4 relevant urls from images[] using Markdown `![](url)`.
                 """.trimIndent(),
                 parameters = {
                     val options = settings.searchServices.getOrElse(

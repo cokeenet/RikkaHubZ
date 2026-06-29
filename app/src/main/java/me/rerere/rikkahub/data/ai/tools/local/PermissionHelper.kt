@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import me.rerere.rikkahub.utils.hasUsageStatsPermission
 
 object PermissionHelper {
     fun hasRuntime(ctx: Context, perms: List<String>): Boolean =
@@ -85,5 +86,11 @@ object PermissionHelper {
     fun allFilesAccessIntent(ctx: Context): Intent =
         Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
             .setData("package:${ctx.packageName}".toUri())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    fun hasUsageStatsAccess(ctx: Context): Boolean = ctx.hasUsageStatsPermission()
+
+    fun usageAccessIntent(): Intent =
+        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }

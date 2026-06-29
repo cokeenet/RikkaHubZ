@@ -405,6 +405,21 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_screen_time_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_screen_time_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.ScreenTime),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ScreenTime, it) },
+                        requiresUsageStatsAccess = true,
+                    )
+                }
+            )
         }
 
         // Output section
@@ -563,6 +578,24 @@ private fun AssistantLocalToolContent(
                         checked = assistant.localTools.contains(LocalToolOption.Contacts),
                         onCheckedChange = { toggleLocalTool(LocalToolOption.Contacts, it) },
                         requiredRuntimePerms = listOf(Manifest.permission.READ_CONTACTS),
+                    )
+                }
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_calendar_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_calendar_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Calendar),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Calendar, it) },
+                        requiredRuntimePerms = listOf(
+                            Manifest.permission.READ_CALENDAR,
+                            Manifest.permission.WRITE_CALENDAR,
+                        ),
                     )
                 }
             )
@@ -1283,6 +1316,7 @@ private fun PermissionedSwitch(
     requiresAccessibilityService: Boolean = false,
     requiresNotificationListener: Boolean = false,
     requiresAllFilesAccess: Boolean = false,
+    requiresUsageStatsAccess: Boolean = false,
     enabled: Boolean = true,
 ) {
     val ctx = LocalContext.current
@@ -1333,6 +1367,7 @@ private fun PermissionedSwitch(
                         requiresAccessibilityService -> PermissionHelper.hasAccessibilityService(ctx)
                         requiresNotificationListener -> PermissionHelper.hasNotificationListener(ctx)
                         requiresAllFilesAccess -> PermissionHelper.hasAllFilesAccess(ctx)
+                        requiresUsageStatsAccess -> PermissionHelper.hasUsageStatsAccess(ctx)
                         else -> false
                     }
                     pendingSpecialResume = false
@@ -1345,6 +1380,7 @@ private fun PermissionedSwitch(
                             requiresAccessibilityService -> "Accessibility service"
                             requiresNotificationListener -> "Notification access"
                             requiresAllFilesAccess -> "All files access"
+                            requiresUsageStatsAccess -> "Usage access"
                             else -> ""
                         }
                         toaster.show(
@@ -1403,6 +1439,14 @@ private fun PermissionedSwitch(
                 }
             }
 
+            requiresUsageStatsAccess -> {
+                if (PermissionHelper.hasUsageStatsAccess(ctx)) {
+                    onCheckedChange(true)
+                } else {
+                    showDialog = true
+                }
+            }
+
             requiredRuntimePerms.isNotEmpty() -> {
                 if (PermissionHelper.hasRuntime(ctx, requiredRuntimePerms)) {
                     onCheckedChange(true)
@@ -1421,7 +1465,7 @@ private fun PermissionedSwitch(
     // raw List<String> for structural equality across recomps, so passing the list
     // directly invalidated this remember on every parent recomp.
     val permsKey = remember(requiredRuntimePerms) { requiredRuntimePerms.joinToString(",") }
-    val permissionMissing = remember(checked, resumeTrigger, permsKey, requiresWriteSettings, requiresDndAccess, requiresAccessibilityService, requiresNotificationListener, requiresAllFilesAccess) {
+    val permissionMissing = remember(checked, resumeTrigger, permsKey, requiresWriteSettings, requiresDndAccess, requiresAccessibilityService, requiresNotificationListener, requiresAllFilesAccess, requiresUsageStatsAccess) {
         checked && when {
             requiredRuntimePerms.isNotEmpty() -> !PermissionHelper.hasRuntime(ctx, requiredRuntimePerms)
             requiresWriteSettings -> !PermissionHelper.hasWriteSettings(ctx)
@@ -1429,6 +1473,7 @@ private fun PermissionedSwitch(
             requiresAccessibilityService -> !PermissionHelper.hasAccessibilityService(ctx)
             requiresNotificationListener -> !PermissionHelper.hasNotificationListener(ctx)
             requiresAllFilesAccess -> !PermissionHelper.hasAllFilesAccess(ctx)
+            requiresUsageStatsAccess -> !PermissionHelper.hasUsageStatsAccess(ctx)
             else -> false
         }
     }
@@ -1451,6 +1496,7 @@ private fun PermissionedSwitch(
                         requiresAccessibilityService -> PermissionHelper.accessibilitySettingsIntent()
                         requiresNotificationListener -> PermissionHelper.notificationListenerSettingsIntent()
                         requiresAllFilesAccess -> PermissionHelper.allFilesAccessIntent(ctx)
+                        requiresUsageStatsAccess -> PermissionHelper.usageAccessIntent()
                         else -> null
                     }
                     if (intent != null) {

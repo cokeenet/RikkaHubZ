@@ -56,6 +56,8 @@ fun TTSProviderConfigure(
                         is TTSProviderSetting.Groq -> "Groq"
                         is TTSProviderSetting.XAI -> "xAI"
                         is TTSProviderSetting.MiMo -> "MiMo"
+                        is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
+                        is TTSProviderSetting.Step -> "Step"
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -83,6 +85,8 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.Groq::class -> "Groq"
                                         TTSProviderSetting.XAI::class -> "xAI"
                                         TTSProviderSetting.MiMo::class -> "MiMo"
+                                        TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
+                                        TTSProviderSetting.Step::class -> "Step"
                                         else -> providerClass.simpleName ?: "Unknown"
                                     }
                                 )
@@ -130,6 +134,16 @@ fun TTSProviderConfigure(
                                         name = "MiMo TTS"
                                     )
 
+                                    TTSProviderSetting.ElevenLabs::class -> TTSProviderSetting.ElevenLabs(
+                                        id = setting.id,
+                                        name = "ElevenLabs TTS"
+                                    )
+
+                                    TTSProviderSetting.Step::class -> TTSProviderSetting.Step(
+                                        id = setting.id,
+                                        name = "Step TTS"
+                                    )
+
                                     else -> setting
                                 }
                                 onValueChange(newSetting)
@@ -165,6 +179,8 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.Groq -> GroqTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.XAI -> XAITTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.MiMo -> MiMoTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.ElevenLabs -> ElevenLabsTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.Step -> StepTTSConfiguration(setting, onValueChange)
         }
     }
 }
@@ -967,5 +983,329 @@ private fun XAITTSConfiguration(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ElevenLabsTTSConfiguration(
+    setting: TTSProviderSetting.ElevenLabs,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { newApiKey -> onValueChange(setting.copy(apiKey = newApiKey)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("sk_...") },
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { newBaseUrl -> onValueChange(setting.copy(baseUrl = newBaseUrl)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.elevenlabs.io") }
+        )
+    }
+
+    var modelExpanded by remember { mutableStateOf(false) }
+    val models = listOf(
+        "eleven_multilingual_v2" to "Eleven Multilingual v2",
+        "eleven_v3" to "Eleven v3",
+        "eleven_flash_v2_5" to "Eleven Flash v2.5"
+    )
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_model)) },
+        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = modelExpanded,
+            onExpandedChange = { modelExpanded = !modelExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.model,
+                onValueChange = { newModel -> onValueChange(setting.copy(model = newModel)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = modelExpanded,
+                onDismissRequest = { modelExpanded = false }
+            ) {
+                models.forEach { (modelId, displayName) ->
+                    DropdownMenuItem(
+                        text = { Text("$displayName ($modelId)") },
+                        onClick = {
+                            modelExpanded = false
+                            onValueChange(setting.copy(model = modelId))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.voiceId,
+            onValueChange = { newVoiceId -> onValueChange(setting.copy(voiceId = newVoiceId)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("JBFqnCBsd6RMkjVDRZzb") }
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_stability)) },
+        description = { Text(stringResource(R.string.setting_tts_page_stability_description)) }
+    ) {
+        OutlinedNumberInput(
+            value = setting.stability,
+            onValueChange = { newStability ->
+                onValueChange(setting.copy(stability = newStability.coerceIn(0f, 1f)))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = "0.5",
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_similarity_boost)) },
+        description = { Text(stringResource(R.string.setting_tts_page_similarity_boost_description)) }
+    ) {
+        OutlinedNumberInput(
+            value = setting.similarityBoost,
+            onValueChange = { newSimilarityBoost ->
+                onValueChange(setting.copy(similarityBoost = newSimilarityBoost.coerceIn(0f, 1f)))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = "0.75",
+        )
+    }
+}
+
+@Composable
+private fun StepTTSConfiguration(
+    setting: TTSProviderSetting.Step,
+    onValueChange: (TTSProviderSetting) -> Unit
+) {
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text(stringResource(R.string.setting_tts_page_step_api_key_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.apiKey,
+            onValueChange = { newApiKey -> onValueChange(setting.copy(apiKey = newApiKey)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("sk-...") },
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.baseUrl,
+            onValueChange = { newBaseUrl -> onValueChange(setting.copy(baseUrl = newBaseUrl)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.stepfun.com") }
+        )
+    }
+
+    var modelExpanded by remember { mutableStateOf(false) }
+    val models = listOf(
+        "step-tts-mini" to "step-tts-mini",
+        "step-tts-vivid" to "step-tts-vivid",
+        "stepaudio-2.5-tts" to "stepaudio-2.5-tts",
+        "step-tts-2" to "step-tts-2",
+    )
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_model)) },
+        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = modelExpanded,
+            onExpandedChange = { modelExpanded = !modelExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.model,
+                onValueChange = { newModel -> onValueChange(setting.copy(model = newModel)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = modelExpanded,
+                onDismissRequest = { modelExpanded = false }
+            ) {
+                models.forEach { (modelId, description) ->
+                    DropdownMenuItem(
+                        text = { Text(description) },
+                        onClick = {
+                            modelExpanded = false
+                            onValueChange(setting.copy(model = modelId))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.voice,
+            onValueChange = { newVoice -> onValueChange(setting.copy(voice = newVoice)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("elegantgentle-female") }
+        )
+    }
+
+    var formatExpanded by remember { mutableStateOf(false) }
+    val formats = listOf("mp3", "wav", "pcm", "opus", "ogg", "aac")
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_response_format)) },
+        description = { Text(stringResource(R.string.setting_tts_page_response_format_description)) }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = formatExpanded,
+            onExpandedChange = { formatExpanded = !formatExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.responseFormat,
+                onValueChange = { newFormat -> onValueChange(setting.copy(responseFormat = newFormat)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = formatExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = formatExpanded,
+                onDismissRequest = { formatExpanded = false }
+            ) {
+                formats.forEach { format ->
+                    DropdownMenuItem(
+                        text = { Text(format) },
+                        onClick = {
+                            formatExpanded = false
+                            onValueChange(setting.copy(responseFormat = format))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_speed)) },
+        description = { Text(stringResource(R.string.setting_tts_page_step_speed_description)) }
+    ) {
+        OutlinedNumberInput(
+            value = setting.speed,
+            onValueChange = { newSpeed ->
+                if (newSpeed in 0.5f..2.0f) {
+                    onValueChange(setting.copy(speed = newSpeed))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.setting_tts_page_speed)
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_volume)) },
+        description = { Text(stringResource(R.string.setting_tts_page_volume_description)) }
+    ) {
+        OutlinedNumberInput(
+            value = setting.volume,
+            onValueChange = { newVolume ->
+                if (newVolume in 0.1f..2.0f) {
+                    onValueChange(setting.copy(volume = newVolume))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.setting_tts_page_volume)
+        )
+    }
+
+    var sampleRateExpanded by remember { mutableStateOf(false) }
+    val sampleRates = listOf(8000, 16000, 22050, 24000)
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_sample_rate)) },
+        description = { Text(stringResource(R.string.setting_tts_page_sample_rate_description)) }
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = sampleRateExpanded,
+            onExpandedChange = { sampleRateExpanded = !sampleRateExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.sampleRate.toString(),
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = sampleRateExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = sampleRateExpanded,
+                onDismissRequest = { sampleRateExpanded = false }
+            ) {
+                sampleRates.forEach { rate ->
+                    DropdownMenuItem(
+                        text = { Text("$rate Hz") },
+                        onClick = {
+                            sampleRateExpanded = false
+                            onValueChange(setting.copy(sampleRate = rate))
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_instruction)) },
+        description = { Text(stringResource(R.string.setting_tts_page_instruction_description)) }
+    ) {
+        OutlinedTextField(
+            value = setting.instruction,
+            onValueChange = { newInstruction ->
+                if (newInstruction.length <= 200) {
+                    onValueChange(setting.copy(instruction = newInstruction))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.setting_tts_page_instruction_placeholder)) },
+            minLines = 2,
+            maxLines = 4,
+        )
     }
 }

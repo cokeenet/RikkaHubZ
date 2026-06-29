@@ -85,12 +85,63 @@ sealed class ASRProviderSetting {
         }
     }
 
+    @Serializable
+    @SerialName("mimo")
+    data class MiMo(
+        override val id: Uuid = Uuid.random(),
+        override val name: String = "MiMo ASR",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.xiaomimimo.com/v1",
+        val model: String = "mimo-v2.5-asr",
+        val language: String = "auto",
+        val sampleRate: Int = 16000,
+        val segmentDurationSec: Int = 30,
+    ) : ASRProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): ASRProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("step")
+    data class Step(
+        override val id: Uuid = Uuid.random(),
+        override val name: String = "Step ASR",
+        val apiKey: String = "",
+        val baseUrl: String = "https://api.stepfun.com",
+        val model: String = "stepaudio-2.5-asr",
+        val language: String = "auto",
+        val sampleRate: Int = 16000,
+        val segmentDurationSec: Int = 30,
+        val enableItn: Boolean = true,
+        val enableTimestamp: Boolean = false,
+        val hotwords: List<String> = emptyList(),
+    ) : ASRProviderSetting() {
+        override fun copyProvider(
+            id: Uuid,
+            name: String,
+        ): ASRProviderSetting {
+            return this.copy(
+                id = id,
+                name = name,
+            )
+        }
+    }
+
     companion object {
         val Types by lazy {
             listOf(
                 OpenAIRealtime::class,
                 DashScope::class,
                 Volcengine::class,
+                MiMo::class,
+                Step::class,
             )
         }
     }
